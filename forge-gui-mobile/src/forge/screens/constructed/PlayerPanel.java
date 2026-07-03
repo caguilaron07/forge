@@ -35,6 +35,7 @@ import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.model.FModel;
 import forge.toolbox.FComboBox;
 import forge.toolbox.FContainer;
+import forge.toolbox.FDisplayObject;
 import forge.toolbox.FEvent;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FLabel;
@@ -451,7 +452,7 @@ public class PlayerPanel extends FContainer {
 
     private static void registerIfFocusable(FocusNavigator navigator, FDisplayObject object) {
         if (object.isEnabled() && object.isVisible()) {
-            navigator.register(object);
+            navigator.registerDisplayObject(object);
         }
     }
 

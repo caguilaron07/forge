@@ -755,7 +755,7 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         Focusable previous = padFocus.getFocused();
         padFocus.clear();
         padFocus.setScrollPane(lstSettings);
-        padFocus.register(txtSearch);
+        padFocus.registerDisplayObject(txtSearch);
         padFocus.register(lstSettings);
         padFocus.restoreFocus(previous);
         if (padFocus.getFocused() == null) {
@@ -941,7 +941,7 @@ public class SettingsPage extends TabPage<SettingsScreen> {
                 });
                 int currentIdx = currentValue == null ? -1 : options.indexOf(currentValue);
                 if (currentIdx >= 0) {
-                    lstOptions.setSelectedIndex(currentIdx);
+                    lstOptions.setPadSelectedIndex(currentIdx);
                 }
             }
 

@@ -3,7 +3,6 @@ package forge.toolbox;
 import com.badlogic.gdx.utils.Align;
 
 import com.badlogic.gdx.Input.Keys;
-import com.badlogic.gdx.math.Rectangle;
 
 import forge.Forge;
 import forge.Graphics;

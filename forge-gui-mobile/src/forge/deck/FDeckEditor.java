@@ -548,7 +548,6 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
         deckHeader.btnSave.setEnabled(allowSave);
         deckHeader.btnSave.setVisible(allowSave);
         boolean canRename = allowRename();
-        deckHeader.lblName.setSelectable(canRename);
         deckHeader.lblName.setCommand(canRename ? e -> {
             if (deck == null) {
                 return;
@@ -1282,7 +1281,7 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
                 navigator.register(lblName);
             }
             if (btnDraftLog != null && btnDraftLog.isEnabled() && btnDraftLog.isVisible()) {
-                navigator.register(btnDraftLog);
+                navigator.registerDisplayObject(btnDraftLog);
             }
             if (btnSave.isVisible() && btnSave.isEnabled()) {
                 navigator.register(btnSave);

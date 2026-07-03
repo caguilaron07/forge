@@ -17,6 +17,10 @@ public abstract class VDisplayArea extends FScrollPane {
     public abstract int getCount();
     public abstract void update();
 
+    protected int getPadSelectedIndex() {
+        return selectedIndex;
+    }
+
     private boolean selectFilteredRelative(int step) {
         int childCount = getChildCount();
         if (childCount < 1) {

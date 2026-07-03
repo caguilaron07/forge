@@ -25,7 +25,7 @@ public class FGroupList<E> extends FScrollPane implements Focusable {
     private final List<ListGroup> groups = new ArrayList<>();
     private FSkinFont font;
     private ListItemRenderer<E> renderer;
-    private int selectedIndex = -1;
+    private int padSelectedIndex = -1;
 
     public FGroupList() {
         initialize();
@@ -151,29 +151,29 @@ public class FGroupList<E> extends FScrollPane implements Focusable {
             }
             group.setVisible(anyVisible);
         }
-        if (selectedIndex >= 0) {
+        if (padSelectedIndex >= 0) {
             List<ListItem> visible = collectVisibleItems();
             if (visible.isEmpty()) {
-                selectedIndex = -1;
-            } else if (selectedIndex >= visible.size()) {
-                setSelectedIndex(visible.size() - 1);
+                padSelectedIndex = -1;
+            } else if (padSelectedIndex >= visible.size()) {
+                setPadSelectedIndex(visible.size() - 1);
             }
         }
         revalidate();
     }
 
-    public int getSelectedIndex() {
-        return selectedIndex;
+    public int getPadSelectedIndex() {
+        return padSelectedIndex;
     }
 
-    public void setSelectedIndex(int index) {
+    public void setPadSelectedIndex(int index) {
         List<ListItem> visible = collectVisibleItems();
         if (visible.isEmpty()) {
-            selectedIndex = -1;
+            padSelectedIndex = -1;
             return;
         }
         index = Math.max(0, Math.min(index, visible.size() - 1));
-        selectedIndex = index;
+        padSelectedIndex = index;
         scrollIntoView(visible.get(index));
         Gdx.graphics.requestRendering();
     }
@@ -195,10 +195,10 @@ public class FGroupList<E> extends FScrollPane implements Focusable {
 
     private boolean activateSelectedItem() {
         List<ListItem> visible = collectVisibleItems();
-        if (selectedIndex < 0 || selectedIndex >= visible.size()) {
+        if (padSelectedIndex < 0 || padSelectedIndex >= visible.size()) {
             return false;
         }
-        return visible.get(selectedIndex).tap(0, 0, 1);
+        return visible.get(padSelectedIndex).tap(0, 0, 1);
     }
 
     public boolean keyDown(int keyCode) {
@@ -207,10 +207,10 @@ public class FGroupList<E> extends FScrollPane implements Focusable {
         }
         switch (keyCode) {
             case Keys.DPAD_DOWN:
-                setSelectedIndex(selectedIndex < 0 ? 0 : selectedIndex + 1);
+                setPadSelectedIndex(padSelectedIndex < 0 ? 0 : padSelectedIndex + 1);
                 return true;
             case Keys.DPAD_UP:
-                setSelectedIndex(selectedIndex < 0 ? 0 : selectedIndex - 1);
+                setPadSelectedIndex(padSelectedIndex < 0 ? 0 : padSelectedIndex - 1);
                 return true;
             case Keys.BUTTON_A:
             case Keys.ENTER:
@@ -233,8 +233,8 @@ public class FGroupList<E> extends FScrollPane implements Focusable {
     @Override
     public void onFocusGained() {
         setHovered(true);
-        if (selectedIndex < 0) {
-            setSelectedIndex(0);
+        if (padSelectedIndex < 0) {
+            setPadSelectedIndex(0);
         }
     }
 
@@ -403,10 +403,10 @@ public class FGroupList<E> extends FScrollPane implements Focusable {
         if (item.pressed) {
             return FList.getPressedColor();
         }
-        if (Forge.hasGamepad() && selectedIndex >= 0) {
+        if (Forge.hasGamepad() && padSelectedIndex >= 0) {
             List<ListItem> visible = collectVisibleItems();
             int idx = visible.indexOf(item);
-            if (idx == selectedIndex) {
+            if (idx == padSelectedIndex) {
                 return FList.getPressedColor().alphaColor(0.65f);
             }
         }

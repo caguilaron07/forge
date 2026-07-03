@@ -44,7 +44,7 @@ public class FocusNavigator {
         }
     }
 
-    public void register(FDisplayObject object) {
+    public void registerDisplayObject(FDisplayObject object) {
         register(DisplayObjectFocusable.forObject(object));
     }
 
@@ -56,7 +56,7 @@ public class FocusNavigator {
                     register(focusable);
                 }
             } else if (child.isEnabled() && child.isVisible()) {
-                register(child);
+                register(DisplayObjectFocusable.forObject(child));
             }
         }
         if (!focusables.isEmpty()) {

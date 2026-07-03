@@ -60,7 +60,7 @@ public class VManaPool extends VDisplayArea {
             totalMana += colorCount;
             label.text = Integer.toString(colorCount);
         }
-        if (Forge.hasGamepad() && isVisible() && selectedIndex < 0) {
+        if (Forge.hasGamepad() && isVisible() && getPadSelectedIndex() < 0) {
             for (int i = 0; i < manaLabels.size(); i++) {
                 if (player.getMana(manaLabels.get(i).colorCode) > 0) {
                     setNextSelected(1);

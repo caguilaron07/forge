@@ -21,12 +21,17 @@ public class FocusGroup extends FContainer {
     }
 
     @Override
+    protected void doLayout(float width, float height) {
+        // Children are positioned by parent layouts.
+    }
+
+    @Override
     public <T extends FDisplayObject> T add(T child) {
         T added = super.add(child);
         if (child instanceof Focusable focusable) {
             navigator.register(focusable);
         } else if (child.isEnabled() && child.isVisible()) {
-            navigator.register(child);
+            navigator.registerDisplayObject(child);
         }
         return added;
     }

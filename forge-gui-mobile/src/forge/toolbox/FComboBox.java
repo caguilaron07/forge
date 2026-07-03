@@ -9,7 +9,6 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
-import forge.Forge;
 import forge.Graphics;
 import forge.gui.interfaces.IComboBox;
 import forge.menu.FDropDownMenu;

@@ -251,6 +251,11 @@ public abstract class FDropDown extends FScrollPane {
         }
     }
 
+    protected void tapChild(FDisplayObject child) {
+        selectedChild = child;
+        tapChild();
+    }
+
     public void cancel() {
         if (getMenuTab() != null)
             getMenuTab().clearSelected();

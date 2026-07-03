@@ -237,8 +237,8 @@ public class FilesPage extends TabPage<SettingsScreen> {
 
     @Override
     protected void onActivate() {
-        if (Forge.hasGamepad() && lstItems.getSelectedIndex() < 0) {
-            lstItems.setSelectedIndex(0);
+        if (Forge.hasGamepad() && lstItems.getPadSelectedIndex() < 0) {
+            lstItems.setPadSelectedIndex(0);
         }
     }
 

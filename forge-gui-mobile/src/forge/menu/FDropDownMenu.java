@@ -128,8 +128,7 @@ public abstract class FDropDownMenu extends FDropDown {
                         applySelection();
                         padFocus.setFocusedIndex(selected);
                     }
-                    selectedChild = items.get(selected);
-                    tapChild();
+                    tapChild(items.get(selected));
                     return true;
                 case Keys.BUTTON_B:
                 case Keys.ESCAPE:

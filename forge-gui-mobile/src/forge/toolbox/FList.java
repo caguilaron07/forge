@@ -42,7 +42,7 @@ public class FList<T> extends FScrollPane implements Iterable<T> {
     private FSkinFont font;
     private ListItemRenderer<T> renderer;
     private int pressedIndex = -1;
-    private int selectedIndex = -1;
+    private int padSelectedIndex = -1;
 
     public FList() {
         initialize();
@@ -219,17 +219,17 @@ public class FList<T> extends FScrollPane implements Iterable<T> {
         }
     }
 
-    public int getSelectedIndex() {
-        return selectedIndex;
+    public int getPadSelectedIndex() {
+        return padSelectedIndex;
     }
 
-    public void setSelectedIndex(int index) {
+    public void setPadSelectedIndex(int index) {
         if (items.isEmpty()) {
-            selectedIndex = -1;
+            padSelectedIndex = -1;
             return;
         }
         index = Math.max(0, Math.min(index, items.size() - 1));
-        selectedIndex = index;
+        padSelectedIndex = index;
         scrollIntoView(index);
         Gdx.graphics.requestRendering();
     }
@@ -240,16 +240,16 @@ public class FList<T> extends FScrollPane implements Iterable<T> {
         }
         switch (keyCode) {
             case Keys.DPAD_DOWN:
-                setSelectedIndex(selectedIndex < 0 ? 0 : selectedIndex + 1);
+                setPadSelectedIndex(padSelectedIndex < 0 ? 0 : padSelectedIndex + 1);
                 return true;
             case Keys.DPAD_UP:
-                setSelectedIndex(selectedIndex < 0 ? 0 : selectedIndex - 1);
+                setPadSelectedIndex(padSelectedIndex < 0 ? 0 : padSelectedIndex - 1);
                 return true;
             case Keys.BUTTON_A:
             case Keys.ENTER:
-                if (selectedIndex >= 0 && selectedIndex < items.size()) {
-                    T item = items.get(selectedIndex);
-                    return renderer.tap(selectedIndex, item, 0, 0, 1);
+                if (padSelectedIndex >= 0 && padSelectedIndex < items.size()) {
+                    T item = items.get(padSelectedIndex);
+                    return renderer.tap(padSelectedIndex, item, 0, 0, 1);
                 }
                 return false;
             default:
@@ -331,7 +331,7 @@ public class FList<T> extends FScrollPane implements Iterable<T> {
         if (index == pressedIndex) {
             return FList.getPressedColor();
         }
-        if (Forge.hasGamepad() && index == selectedIndex) {
+        if (Forge.hasGamepad() && index == padSelectedIndex) {
             return FList.getPressedColor().alphaColor(0.65f);
         }
         return null;

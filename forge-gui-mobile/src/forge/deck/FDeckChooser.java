@@ -19,6 +19,7 @@ import com.badlogic.gdx.utils.Align;
 import com.google.common.collect.Lists;
 
 import forge.Forge;
+import forge.Graphics;
 import forge.assets.ImageCache;
 import forge.deck.io.DeckPreferences;
 import forge.game.GameType;
@@ -1226,7 +1227,7 @@ public class FDeckChooser extends FScreen {
             padFocus.register(cmbDeckTypes);
         }
         if (lstDecks.isEnabled() && lstDecks.isVisible()) {
-            padFocus.register(lstDecks);
+            padFocus.registerDisplayObject(lstDecks);
         }
         if (btnNewDeck.isEnabled() && btnNewDeck.isVisible()) {
             padFocus.register(btnNewDeck);

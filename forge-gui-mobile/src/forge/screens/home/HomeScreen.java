@@ -199,7 +199,6 @@ public class HomeScreen extends FScreen {
         });
         revalidate();
         buttonScroller.scrollIntoView(buttons.get(index));
-        padFocus.register(buttons.get(index));
     }
 
     @Override
