@@ -1,6 +1,7 @@
 package forge.screens;
 
 import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.math.Rectangle;
 
 import forge.Forge;
 import forge.Graphics;
@@ -8,6 +9,8 @@ import forge.assets.FSkinImage;
 import forge.menu.FPopupMenu;
 import forge.toolbox.FDisplayObject;
 import forge.toolbox.FOptionPane;
+import forge.toolbox.focus.Focusable;
+import forge.toolbox.focus.FocusNavigator;
 import forge.util.Utils;
 
 public abstract class LaunchScreen extends FScreen {
@@ -16,12 +19,15 @@ public abstract class LaunchScreen extends FScreen {
     private static final float PADDING = FOptionPane.PADDING;
 
     protected final StartButton btnStart = add(new StartButton());
+    private final FocusNavigator padFocus = new FocusNavigator();
 
     public LaunchScreen(String headerCaption) {
         super(headerCaption);
+        padFocus.register(btnStart);
     }
     public LaunchScreen(String headerCaption, FPopupMenu menu) {
         super(headerCaption, menu);
+        padFocus.register(btnStart);
     }
 
     @Override
@@ -45,7 +51,7 @@ public abstract class LaunchScreen extends FScreen {
     protected abstract void doLayoutAboveBtnStart(float startY, float width, float height);
     protected abstract void startMatch();
 
-    protected class StartButton extends FDisplayObject {
+    protected class StartButton extends FDisplayObject implements Focusable {
         private boolean pressed;
 
         /**
@@ -90,14 +96,51 @@ public abstract class LaunchScreen extends FScreen {
                     btnStart.setEnabled(true);
             }
         }
+
+        @Override
+        public Rectangle getFocusBounds() {
+            return screenPos;
+        }
+
+        @Override
+        public boolean isFocusable() {
+            return isEnabled() && isVisible();
+        }
+
+        @Override
+        public void onFocusGained() {
+            setHovered(true);
+        }
+
+        @Override
+        public void onFocusLost() {
+            setHovered(false);
+        }
+
+        @Override
+        public boolean onFocusActivate() {
+            tap(0, 0, 1);
+            return true;
+        }
+    }
+
+    @Override
+    protected void drawOverlay(Graphics g) {
+        if (Forge.hasGamepad()) {
+            padFocus.drawFocusRing(g);
+        }
     }
 
     @Override
     public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad() && padFocus.handleKey(keyCode)) {
+            return true;
+        }
         switch (keyCode) {
         case Keys.ENTER:
         case Keys.SPACE:
-            startMatch(); //start match on Enter or Space
+        case Keys.BUTTON_A:
+            startMatch(); //start match on Enter, Space, or gamepad A
             return true;
         }
         return super.keyDown(keyCode);

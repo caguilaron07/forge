@@ -21,6 +21,8 @@ import forge.screens.home.HomeScreen;
 import forge.screens.settings.SettingsScreen;
 import forge.toolbox.FContainer;
 import forge.toolbox.FDisplayObject;
+import forge.toolbox.PadHints;
+import forge.toolbox.PadHints.Hint;
 import forge.toolbox.FEvent;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FLabel;
@@ -167,6 +169,25 @@ public abstract class FScreen extends FContainer {
             }
         }
         super.draw(g);
+        drawPadHintsOverlay(g);
+    }
+
+    /** Controller hint strip shown in landscape gamepad mode; override per screen. */
+    protected Hint[] getPadHints() {
+        if (Forge.isMobileAdventureMode) {
+            return null;
+        }
+        return PadHints.MENU_DEFAULT;
+    }
+
+    protected void drawPadHintsOverlay(Graphics g) {
+        if (!Forge.hasGamepad() || !Forge.isLandscapeMode() || Forge.isMobileAdventureMode) {
+            return;
+        }
+        Hint[] hints = getPadHints();
+        if (hints != null && hints.length > 0) {
+            PadHints.drawBar(g, getWidth(), getHeight(), hints);
+        }
     }
 
     @Override
@@ -400,7 +421,7 @@ public abstract class FScreen extends FContainer {
 
     @Override
     public boolean keyDown(int keyCode) {
-        if (keyCode == Keys.ESCAPE || keyCode == Keys.BACK) {
+        if (keyCode == Keys.ESCAPE || keyCode == Keys.BACK || keyCode == Keys.BUTTON_B) {
             if (Forge.endKeyInput()) { return true; }
 
             if (Forge.isLandscapeMode() && !allowBackInLandscapeMode()) {

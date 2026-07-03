@@ -1,6 +1,8 @@
 package forge.toolbox;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Align;
 
@@ -17,9 +19,10 @@ import forge.gui.interfaces.IButton;
 import forge.localinstance.skin.FSkinProp;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FEvent.FEventType;
+import forge.toolbox.focus.Focusable;
 import forge.util.TextBounds;
 import forge.util.Utils;
-public class FLabel extends FDisplayObject implements IButton {
+public class FLabel extends FDisplayObject implements IButton, Focusable {
     public static final float DEFAULT_INSETS = Utils.scale(3);
 
     public static class Builder {
@@ -484,5 +487,38 @@ public class FLabel extends FDisplayObject implements IButton {
     @Override
     public void setTextColor(int r, int g, int b) {
         setTextColor(FSkinColor.getStandardColor(r, g, b));
+    }
+
+    @Override
+    public Rectangle getFocusBounds() {
+        return screenPos;
+    }
+
+    @Override
+    public boolean isFocusable() {
+        return isEnabled() && isVisible() && (selectable || command != null);
+    }
+
+    @Override
+    public void onFocusGained() {
+        setHovered(true);
+    }
+
+    @Override
+    public void onFocusLost() {
+        setHovered(false);
+    }
+
+    @Override
+    public boolean onFocusActivate() {
+        return trigger() || tap(0, 0, 1);
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad() && (keyCode == Keys.BUTTON_A || keyCode == Keys.ENTER || keyCode == Keys.SPACE)) {
+            return onFocusActivate();
+        }
+        return false;
     }
 }

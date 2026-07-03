@@ -11,6 +11,7 @@ import forge.player.GamePlayerUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
@@ -48,6 +49,8 @@ import forge.toolbox.FLabel;
 import forge.toolbox.FList;
 import forge.toolbox.FOptionPane;
 import forge.toolbox.FScrollPane;
+import forge.toolbox.focus.Focusable;
+import forge.toolbox.focus.FocusNavigator;
 import forge.util.MyRandom;
 import forge.util.TextUtil;
 import forge.util.Utils;
@@ -101,6 +104,7 @@ public abstract class LobbyScreen extends LaunchScreen implements ILobbyView {
     };
 
     int lastArchenemy = 0;
+    private final FocusNavigator padFocus = new FocusNavigator();
 
     public LobbyScreen(String headerCaption, FPopupMenu menu, GameLobby lobby0) {
         super(headerCaption, menu);
@@ -271,6 +275,7 @@ public abstract class LobbyScreen extends LaunchScreen implements ILobbyView {
             playerPanels.get(i).updateVariantControlsVisibility();
         }
         playersScroll.revalidate();
+        refreshPadFocus();
     }
 
     @Override
@@ -307,6 +312,92 @@ public abstract class LobbyScreen extends LaunchScreen implements ILobbyView {
         }
         y += cbPlayerCount.getHeight() + PADDING;
         playersScroll.setBounds(0, y, width, height - y);
+        refreshPadFocus();
+    }
+
+    void refreshPadFocus() {
+        if (!Forge.hasGamepad()) {
+            return;
+        }
+        Focusable previous = padFocus.getFocused();
+        padFocus.clear();
+        padFocus.setScrollPane(playersScroll);
+        if (cbVariants.isEnabled() && cbVariants.isVisible()) {
+            padFocus.register(cbVariants);
+        }
+        if (cbPlayerCount.isEnabled() && cbPlayerCount.isVisible()) {
+            padFocus.register(cbPlayerCount);
+        }
+        if (cbGamesInMatch.isEnabled() && cbGamesInMatch.isVisible()) {
+            padFocus.register(cbGamesInMatch);
+        }
+        for (int i = 0; i < getNumPlayers() && i < playerPanels.size(); i++) {
+            PlayerPanel panel = playerPanels.get(i);
+            if (panel.isVisible()) {
+                panel.registerPadFocusables(padFocus);
+            }
+        }
+        if (btnStart.isEnabled() && btnStart.isVisible()) {
+            padFocus.register(btnStart);
+        }
+        padFocus.restoreFocus(previous);
+        if (padFocus.getFocused() == null && padFocus.getFocusedIndex() < 0) {
+            padFocus.setFocusedIndex(0);
+        }
+    }
+
+    private boolean isToolbarComboOpen() {
+        return cbVariants.getDropDownisVisible()
+                || cbPlayerCount.getDropDownisVisible()
+                || cbGamesInMatch.getDropDownisVisible();
+    }
+
+    private boolean handleOpenToolbarComboKey(int keyCode) {
+        if (cbVariants.getDropDownisVisible() && cbVariants.keyDown(keyCode)) {
+            return true;
+        }
+        if (cbPlayerCount.getDropDownisVisible() && cbPlayerCount.keyDown(keyCode)) {
+            return true;
+        }
+        return cbGamesInMatch.getDropDownisVisible() && cbGamesInMatch.keyDown(keyCode);
+    }
+
+    @Override
+    protected void drawOverlay(Graphics g) {
+        if (Forge.hasGamepad()) {
+            padFocus.drawFocusRing(g);
+        }
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad()) {
+            if (isToolbarComboOpen() && handleOpenToolbarComboKey(keyCode)) {
+                return true;
+            }
+            for (int i = 0; i < getNumPlayers() && i < playerPanels.size(); i++) {
+                PlayerPanel panel = playerPanels.get(i);
+                if (panel.isVisible() && panel.handleOpenComboKey(keyCode)) {
+                    return true;
+                }
+            }
+            if (padFocus.handleKey(keyCode)) {
+                return true;
+            }
+        }
+        switch (keyCode) {
+            case Keys.ENTER:
+            case Keys.SPACE:
+            case Keys.BUTTON_A:
+                if (btnStart.isEnabled()) {
+                    startMatch();
+                    return true;
+                }
+                break;
+            default:
+                break;
+        }
+        return super.keyDown(keyCode);
     }
 
     GameType getCurrentGameMode() {
@@ -595,6 +686,7 @@ public abstract class LobbyScreen extends LaunchScreen implements ILobbyView {
     @Override
     public void onActivate() {
         cbGamesInMatchBinder.load();
+        refreshPadFocus();
     }
 
     @Override
@@ -694,6 +786,7 @@ public abstract class LobbyScreen extends LaunchScreen implements ILobbyView {
 
         // setMayEdit's revalidate is gated on getHeight() > 0, which fresh panels don't satisfy.
         playersScroll.revalidate();
+        refreshPadFocus();
     }
 
     @Override

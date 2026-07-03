@@ -1,5 +1,6 @@
 package forge.menu;
 
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.Timer.Task;
@@ -19,9 +20,10 @@ import forge.toolbox.FDisplayObject;
 import forge.toolbox.FEvent;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FEvent.FEventType;
+import forge.toolbox.focus.Focusable;
 import forge.util.Utils;
 
-public class FMenuItem extends FDisplayObject implements IButton {
+public class FMenuItem extends FDisplayObject implements IButton, Focusable {
     public static final float HEIGHT = Utils.AVG_FINGER_HEIGHT * 0.8f;
     protected static final float DIVOT_WIDTH = HEIGHT / 6;
     protected static final float GAP_X = HEIGHT * 0.1f;
@@ -198,5 +200,31 @@ public class FMenuItem extends FDisplayObject implements IButton {
     @Override
     public void setTextColor(int r, int g, int b) {
         this.textColor = FSkinColor.getStandardColor(r, g, b);
+    }
+
+    @Override
+    public Rectangle getFocusBounds() {
+        return screenPos;
+    }
+
+    @Override
+    public boolean isFocusable() {
+        return isEnabled() && isVisible();
+    }
+
+    @Override
+    public void onFocusGained() {
+        setHovered(true);
+    }
+
+    @Override
+    public void onFocusLost() {
+        setHovered(false);
+    }
+
+    @Override
+    public boolean onFocusActivate() {
+        tap(0, 0, 1);
+        return true;
     }
 }

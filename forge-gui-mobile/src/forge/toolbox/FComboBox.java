@@ -4,16 +4,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Align;
 
+import forge.Forge;
+import forge.Forge;
 import forge.Graphics;
 import forge.gui.interfaces.IComboBox;
 import forge.menu.FDropDownMenu;
 import forge.menu.FMenuItem;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FEvent.FEventType;
+import forge.toolbox.focus.Focusable;
 
-public class FComboBox<T> extends FTextField implements IComboBox<T> {
+public class FComboBox<T> extends FTextField implements IComboBox<T>, Focusable {
     private final List<T> items = new ArrayList<>();
     private T selectedItem;
     private String label = "";
@@ -174,6 +179,73 @@ public class FComboBox<T> extends FTextField implements IComboBox<T> {
     }
 
     @Override
+    public boolean keyDown(int keyCode) {
+        if (!Forge.hasGamepad() || !isEnabled() || !isVisible()) {
+            return false;
+        }
+        if (dropDown.isVisible()) {
+            return dropDown.keyDown(keyCode);
+        }
+        switch (keyCode) {
+            case Keys.DPAD_UP:
+                cycleSelectedItem(-1);
+                return true;
+            case Keys.DPAD_DOWN:
+                cycleSelectedItem(1);
+                return true;
+            case Keys.BUTTON_A:
+            case Keys.ENTER:
+                dropDown.show();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void cycleSelectedItem(int delta) {
+        if (items.isEmpty()) {
+            return;
+        }
+        int index = getSelectedIndex();
+        if (index < 0) {
+            index = 0;
+        } else {
+            index = (index + delta + items.size()) % items.size();
+        }
+        setSelectedIndex(index);
+    }
+
+    @Override
+    public Rectangle getFocusBounds() {
+        return screenPos;
+    }
+
+    @Override
+    public boolean isFocusable() {
+        return isEnabled() && isVisible() && !items.isEmpty();
+    }
+
+    @Override
+    public void onFocusGained() {
+        setHovered(true);
+    }
+
+    @Override
+    public void onFocusLost() {
+        setHovered(false);
+        hideDropDown();
+    }
+
+    @Override
+    public boolean onFocusActivate() {
+        if (dropDown.isVisible()) {
+            return dropDown.keyDown(Keys.BUTTON_A);
+        }
+        dropDown.show();
+        return true;
+    }
+
+    @Override
     public boolean startEdit() {
         return false; //don't allow editing text
     }
@@ -280,21 +352,13 @@ public class FComboBox<T> extends FTextField implements IComboBox<T> {
 
         @Override
         protected ScrollBounds updateAndGetPaneSize(float maxWidth, float maxVisibleHeight) {
-            clear();
-            items.clear();
-
-            buildMenu();
-
-            //determine needed width of menu
             float width = FComboBox.this.getWidth();
-
-            //set bounds for each item
+            ScrollBounds bounds = super.updateAndGetPaneSize(width, maxVisibleHeight);
             float y = 0;
             for (FMenuItem item : items) {
                 item.setBounds(0, y, width, FMenuItem.HEIGHT);
                 y += FMenuItem.HEIGHT;
             }
-
             return new ScrollBounds(width, y);
         }
 

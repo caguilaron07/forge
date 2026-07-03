@@ -1,11 +1,81 @@
 _This instruction was written using Bazzite, however should be similar enough for SteamOS._
 
-In order to support the SteamDeck "natively" for full Forge Desktop mode, we would likely need to have a flatpack installer for the best user install experience, currently Forge has no intention to have a flatpack. The current **best** and recommended way to have Forge on your SteamDeck is to install and run the Android APK version in Waydroid Android Container.
+For **controller-first play** on Steam Deck, use the **libGDX desktop client** (`forge-gui-mobile-dev`) section below. The Waydroid Android APK and legacy Swing desktop installer are alternative paths.
 
-* You will need to have installed Waydroid first, this reddit post may work for you: https://www.reddit.com/r/SteamDeck/comments/1ay7ev8/how_to_install_waydroid_android_on_your_steam_deck/
+## Forge libGDX Desktop on Steam Deck (Recommended for controller play)
 
-## Installing Forge Android in Waydroid (Recommended Method)
-Once you've installed Waydroid, you can follow the same steps you would in any Android device.
+The **libGDX desktop client** (`forge-gui-mobile-dev`) runs natively on SteamOS / Bazzite with full gamepad support in landscape mode (menus, deck editor, lobby, and duels). This is the path used for controller-first play on the Deck OLED.
+
+### Build the desktop JAR
+
+On any Linux machine with Maven and JDK 17+:
+
+```bash
+git clone https://github.com/Card-Forge/forge.git
+cd forge
+mvn -U -B -P windows-linux install -pl forge-gui-mobile-dev -am
+```
+
+The runnable fat JAR is produced under `forge-gui-mobile-dev/target/` (name varies with version; look for `*-jar-with-dependencies.jar`).
+
+Copy that JAR (and optionally `forge-gui-mobile-dev/src/main/config/forge-adventure.sh` as a launch template) to the Deck.
+
+### Add Forge to Steam
+
+1. In Steam Desktop Mode: **Add a Game** → **Add a Non-Steam Game**.
+2. Choose a launch script or `java` directly. Example `forge-deck.sh` next to the JAR:
+
+```bash
+#!/bin/sh
+cd "$(dirname "$0")"
+exec java -Xmx4G -jar forge-gui-mobile-dev-*-jar-with-dependencies.jar
+```
+
+3. Make the script executable: `chmod +x forge-deck.sh`
+4. Add `forge-deck.sh` as the non-Steam game entry.
+
+### Steam Input (required for consistent pads)
+
+Enable **Steam Input** for the Forge entry (controller icon in Steam → Manage → Controller Options).
+
+- Use the **Gamepad** template (Xbox-style layout).
+- Steam normalizes Stadia, Switch Pro, and other pads to the same virtual gamepad; Forge shows Xbox-style on-screen glyphs.
+- **Desktop Mode:** play in landscape with the Deck in the kickstand or an external display if desired.
+- **Game Mode:** launch from Steam; Forge opens in landscape when a controller is active.
+
+### Verify controller detection
+
+1. Launch Forge from Steam with a pad connected.
+2. Open **Home** in landscape — menu items should show an orange focus ring when navigating with the d-pad.
+3. Check logs if needed: controller connect/disconnect lines appear as `Controller` in the libGDX log; initial pad enumeration may also print `Gamepad: <name>` once at startup.
+
+### Controls (classic mode, landscape + gamepad)
+
+| Input | Action |
+|---|---|
+| D-pad | Move focus / field selection |
+| A | Select / confirm |
+| B | Back / cancel prompt |
+| L1 / R1 | Previous / next player panel (match); prev / next tab (settings, deck editor) |
+| L2 / R2 | OK / cancel (prompt bar); also mapped to Enter / Escape |
+| Y | Zoom card |
+| Left stick down | Confirm player target (avatar) |
+
+Touch and mouse remain fully supported alongside the controller.
+
+### Troubleshooting
+
+- **No gamepad response:** confirm Steam Input is enabled and a layout is applied; try Desktop Mode first.
+- **Portrait layout with pad:** rotate to landscape or relaunch from Steam Game Mode.
+- **Java missing on host OS:** install OpenJDK 17+ (`rpm-ostree install java-21-openjdk` on Bazzite, or distro equivalent). The fat JAR still needs a JRE on the system.
+
+---
+
+## Installing Forge Android in Waydroid (Alternative Method)
+
+* You will need Waydroid installed first; this reddit post may help: https://www.reddit.com/r/SteamDeck/comments/1ay7ev8/how_to_install_waydroid_android_on_your_steam_deck/
+
+Once you've installed Waydroid, you can follow the same steps you would on any Android device.
 
 1. Open browser to https://github.com/Card-Forge/forge
 
@@ -43,9 +113,11 @@ My understanding is that Waydroid running detached Android apps doesn't work at 
 
 1. Start Forge
 
-## Forge Desktop (JAR or BZ2 File)
+## Legacy Swing Desktop (forge-gui-desktop)
 
-### Installing Forge Desktop Natively (Not Recommended)
+This section refers to the **classic Swing desktop client** (`forge-gui-desktop`), not the libGDX `forge-gui-mobile-dev` build above.
+
+### Installing Swing Desktop Natively (Not Recommended)
 
 Barring a flatpack (and packing Java with Forge), the correct way to install Forge Desktop natively (installer JAR or BZ2 archive) would be to install Java OpenJDK in the OS globally. **This is against Steam and Bazzite Dev recommendations**, however is doable; 
 

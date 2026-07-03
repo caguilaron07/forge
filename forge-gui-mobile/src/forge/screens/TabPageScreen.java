@@ -16,6 +16,7 @@ import forge.toolbox.FDisplayObject;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FLabel;
 import forge.toolbox.FScrollPane;
+import forge.toolbox.PadHints;
 import forge.util.Utils;
 
 import java.util.ArrayList;
@@ -116,6 +117,14 @@ public class TabPageScreen<T extends TabPageScreen<T>> extends FScreen {
 
     protected boolean showCompactTabs() {
         return COMPACT_TABS || getHeader() != tabHeader; //always show compact tabs if not in primary header
+    }
+
+    @Override
+    protected PadHints.Hint[] getPadHints() {
+        if (Forge.isMobileAdventureMode) {
+            return null;
+        }
+        return PadHints.TAB_SCREEN;
     }
 
     @Override
@@ -359,6 +368,10 @@ public class TabPageScreen<T extends TabPageScreen<T>> extends FScreen {
          * Called when a different tab is selected and this one becomes inactive.
          */
         protected void onDeactivate() {}
+
+        public boolean keyDown(int keyCode) {
+            return false;
+        }
 
         @Override
         public boolean fling(float velocityX, float velocityY) {

@@ -2,6 +2,9 @@ package forge.toolbox;
 
 import com.badlogic.gdx.utils.Align;
 
+import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.math.Rectangle;
+
 import forge.Forge;
 import forge.Graphics;
 import forge.assets.FImage;
@@ -75,5 +78,20 @@ public class FCheckBox extends FLabel implements ICheckBox {
             g.drawLine(thickness, checkColor, x, y + h / 2, x + w / 2, y + h);
             g.drawLine(thickness, checkColor, x + w / 2, y + h, x + w, y);
         }
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad() && (keyCode == Keys.BUTTON_A || keyCode == Keys.ENTER || keyCode == Keys.SPACE)) {
+            setSelected(!isSelected());
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean onFocusActivate() {
+        setSelected(!isSelected());
+        return true;
     }
 }

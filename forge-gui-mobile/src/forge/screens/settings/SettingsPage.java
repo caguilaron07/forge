@@ -1,5 +1,6 @@
 package forge.screens.settings;
 
+import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.utils.Align;
 import com.google.common.collect.Lists;
 import forge.Forge;
@@ -32,6 +33,8 @@ import forge.toolbox.FList;
 import forge.toolbox.FOptionPane;
 import forge.toolbox.FScrollPane;
 import forge.toolbox.FTextField;
+import forge.toolbox.focus.FocusNavigator;
+import forge.toolbox.focus.Focusable;
 import forge.util.Lang;
 import forge.util.Utils;
 
@@ -40,6 +43,7 @@ import java.util.*;
 public class SettingsPage extends TabPage<SettingsScreen> {
     private final FTextField txtSearch = add(new FTextField());
     private final FGroupList<Setting> lstSettings = add(new FGroupList<>());
+    private final FocusNavigator padFocus = new FocusNavigator();
     private final CustomSelectSetting settingSkins;
     private final CustomSelectSetting settingCJKFonts;
 
@@ -739,6 +743,44 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         settingCJKFonts.updateOptions(FSkinFont.getAllCJKFonts());
     }
 
+    @Override
+    protected void onActivate() {
+        refreshPadFocus();
+    }
+
+    private void refreshPadFocus() {
+        if (!Forge.hasGamepad()) {
+            return;
+        }
+        Focusable previous = padFocus.getFocused();
+        padFocus.clear();
+        padFocus.setScrollPane(lstSettings);
+        padFocus.register(txtSearch);
+        padFocus.register(lstSettings);
+        padFocus.restoreFocus(previous);
+        if (padFocus.getFocused() == null) {
+            padFocus.setFocusedIndex(1);
+        }
+    }
+
+    @Override
+    protected void drawOverlay(Graphics g) {
+        if (Forge.hasGamepad()) {
+            padFocus.drawFocusRing(g);
+        }
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (!Forge.hasGamepad()) {
+            return false;
+        }
+        if (padFocus.getFocused() == lstSettings && lstSettings.keyDown(keyCode)) {
+            return true;
+        }
+        return padFocus.handleKey(keyCode);
+    }
+
     private void applySearch() {
         final String query = txtSearch.getText().toLowerCase().trim();
         if (query.isEmpty()) {
@@ -755,6 +797,7 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         float searchHeight = FTextField.getDefaultHeight(txtSearch.getFont());
         txtSearch.setBounds(0, 0, width, searchHeight);
         lstSettings.setBounds(0, searchHeight, width, height - searchHeight);
+        refreshPadFocus();
     }
 
     private abstract class Setting {
@@ -896,11 +939,29 @@ public class SettingsPage extends TabPage<SettingsScreen> {
                         }
                     }
                 });
+                int currentIdx = currentValue == null ? -1 : options.indexOf(currentValue);
+                if (currentIdx >= 0) {
+                    lstOptions.setSelectedIndex(currentIdx);
+                }
             }
 
             @Override
             protected void doLayout(float startY, float width, float height) {
                 lstOptions.setBounds(0, startY, width, height - startY);
+            }
+
+            @Override
+            public boolean keyDown(int keyCode) {
+                if (Forge.hasGamepad()) {
+                    if (lstOptions.keyDown(keyCode)) {
+                        return true;
+                    }
+                    if (keyCode == Keys.BUTTON_B || keyCode == Keys.ESCAPE) {
+                        Forge.back();
+                        return true;
+                    }
+                }
+                return false;
             }
 
             @Override

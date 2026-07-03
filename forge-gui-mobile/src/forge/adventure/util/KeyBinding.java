@@ -5,6 +5,7 @@ import com.badlogic.gdx.controllers.Controller;
 import com.badlogic.gdx.controllers.ControllerMapping;
 import com.badlogic.gdx.controllers.Controllers;
 import forge.gui.GuiBase;
+import forge.util.ControllerGlyphs;
 
 // The standard button has index 0, controller binding is 1. Others can be added if needed.
 public enum KeyBinding {
@@ -49,18 +50,14 @@ public enum KeyBinding {
         return false;
     }
 
-    // The controller binding always has index 1.
-    final static String controllerPrefix = "XBox_";
-
     public String getLabelText(boolean pressed) {
         if (Controllers.getCurrent() != null) {
-            return "[%120][+" + controllerPrefix + Input.Keys.toString(bindings[1]).replace(" Button", "") + (pressed ? "_pressed]" : "]");
-        } else {
-            if (GuiBase.isAndroid())
-                return "";
-            return "[%120][+" + Input.Keys.toString(bindings[0]) + (pressed ? "_pressed]" : "]");
+            return ControllerGlyphs.getTextraMarkup(bindings[1], pressed);
         }
-
+        if (GuiBase.isAndroid()) {
+            return "";
+        }
+        return "[%120][+" + Input.Keys.toString(bindings[0]) + (pressed ? "_pressed]" : "]");
     }
 
     public static int controllerButtonToKey(Controller controller, int key) {

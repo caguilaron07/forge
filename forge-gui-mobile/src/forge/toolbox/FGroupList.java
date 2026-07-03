@@ -4,6 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.math.Rectangle;
+
 import forge.Forge;
 import forge.Graphics;
 import forge.assets.FSkinColor;
@@ -12,14 +16,16 @@ import forge.assets.FSkinTexture;
 import forge.screens.FScreen;
 import forge.toolbox.FList.DefaultListItemRenderer;
 import forge.toolbox.FList.ListItemRenderer;
+import forge.toolbox.focus.Focusable;
 import forge.util.Utils;
 
-public class FGroupList<E> extends FScrollPane {
+public class FGroupList<E> extends FScrollPane implements Focusable {
     private static final float GROUP_HEADER_HEIGHT = Math.round(Utils.AVG_FINGER_HEIGHT * 0.6f);
 
     private final List<ListGroup> groups = new ArrayList<>();
     private FSkinFont font;
     private ListItemRenderer<E> renderer;
+    private int selectedIndex = -1;
 
     public FGroupList() {
         initialize();
@@ -145,7 +151,101 @@ public class FGroupList<E> extends FScrollPane {
             }
             group.setVisible(anyVisible);
         }
+        if (selectedIndex >= 0) {
+            List<ListItem> visible = collectVisibleItems();
+            if (visible.isEmpty()) {
+                selectedIndex = -1;
+            } else if (selectedIndex >= visible.size()) {
+                setSelectedIndex(visible.size() - 1);
+            }
+        }
         revalidate();
+    }
+
+    public int getSelectedIndex() {
+        return selectedIndex;
+    }
+
+    public void setSelectedIndex(int index) {
+        List<ListItem> visible = collectVisibleItems();
+        if (visible.isEmpty()) {
+            selectedIndex = -1;
+            return;
+        }
+        index = Math.max(0, Math.min(index, visible.size() - 1));
+        selectedIndex = index;
+        scrollIntoView(visible.get(index));
+        Gdx.graphics.requestRendering();
+    }
+
+    private List<ListItem> collectVisibleItems() {
+        List<ListItem> visible = new ArrayList<>();
+        for (ListGroup group : groups) {
+            if (!group.isVisible() || group.isCollapsed()) {
+                continue;
+            }
+            for (ListItem item : group.items) {
+                if (item.isVisible()) {
+                    visible.add(item);
+                }
+            }
+        }
+        return visible;
+    }
+
+    private boolean activateSelectedItem() {
+        List<ListItem> visible = collectVisibleItems();
+        if (selectedIndex < 0 || selectedIndex >= visible.size()) {
+            return false;
+        }
+        return visible.get(selectedIndex).tap(0, 0, 1);
+    }
+
+    public boolean keyDown(int keyCode) {
+        if (!Forge.hasGamepad() || collectVisibleItems().isEmpty()) {
+            return false;
+        }
+        switch (keyCode) {
+            case Keys.DPAD_DOWN:
+                setSelectedIndex(selectedIndex < 0 ? 0 : selectedIndex + 1);
+                return true;
+            case Keys.DPAD_UP:
+                setSelectedIndex(selectedIndex < 0 ? 0 : selectedIndex - 1);
+                return true;
+            case Keys.BUTTON_A:
+            case Keys.ENTER:
+                return activateSelectedItem();
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    public Rectangle getFocusBounds() {
+        return screenPos;
+    }
+
+    @Override
+    public boolean isFocusable() {
+        return isEnabled() && isVisible() && !collectVisibleItems().isEmpty();
+    }
+
+    @Override
+    public void onFocusGained() {
+        setHovered(true);
+        if (selectedIndex < 0) {
+            setSelectedIndex(0);
+        }
+    }
+
+    @Override
+    public void onFocusLost() {
+        setHovered(false);
+    }
+
+    @Override
+    public boolean onFocusActivate() {
+        return activateSelectedItem();
     }
 
     public FSkinFont getFont() {
@@ -183,6 +283,10 @@ public class FGroupList<E> extends FScrollPane {
         private final List<ListItem> items = new ArrayList<>();
 
         private boolean isCollapsed;
+
+        private boolean isCollapsed() {
+            return isCollapsed;
+        }
 
         private ListGroup(String name0) {
             if (name0 == null) {
@@ -298,6 +402,13 @@ public class FGroupList<E> extends FScrollPane {
     protected FSkinColor getItemFillColor(ListItem item) {
         if (item.pressed) {
             return FList.getPressedColor();
+        }
+        if (Forge.hasGamepad() && selectedIndex >= 0) {
+            List<ListItem> visible = collectVisibleItems();
+            int idx = visible.indexOf(item);
+            if (idx == selectedIndex) {
+                return FList.getPressedColor().alphaColor(0.65f);
+            }
         }
         return null;
     }

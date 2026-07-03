@@ -27,6 +27,7 @@ import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FLabel;
 import forge.toolbox.FOptionPane;
 import forge.toolbox.FScrollPane;
+import forge.toolbox.focus.FocusNavigator;
 import forge.util.Utils;
 
 public class HomeScreen extends FScreen {
@@ -59,6 +60,7 @@ public class HomeScreen extends FScreen {
             }
     ).iconInBackground().iconScaleFactor(1).build());
     private final ButtonScroller buttonScroller = add(new ButtonScroller());
+    private final FocusNavigator padFocus = new FocusNavigator();
     private final List<MenuButton> buttons = new ArrayList<>();
     private int activeButtonIndex, baseButtonCount;
     private FDeckChooser deckManager;
@@ -133,10 +135,12 @@ public class HomeScreen extends FScreen {
             }
         }));
         baseButtonCount = buttons.size();
+        padFocus.setScrollPane(buttonScroller);
     }
 
     private void addButton(String caption, FEventHandler command) {
         buttons.add(buttonScroller.add(new MenuButton(caption, command)));
+        padFocus.register(buttons.get(buttons.size() - 1));
     }
 
     public void updateQuestCommanderMode(boolean isCommander){
@@ -195,6 +199,39 @@ public class HomeScreen extends FScreen {
         });
         revalidate();
         buttonScroller.scrollIntoView(buttons.get(index));
+        padFocus.register(buttons.get(index));
+    }
+
+    @Override
+    public void onActivate() {
+        super.onActivate();
+        if (Forge.hasGamepad() && !buttons.isEmpty()) {
+            int idx = Forge.lastButtonIndex;
+            if (idx < 0 || idx >= buttons.size()) {
+                idx = 0;
+            }
+            padFocus.setFocusedIndex(idx);
+            activeButtonIndex = idx;
+        }
+    }
+
+    @Override
+    protected void drawOverlay(Graphics g) {
+        if (Forge.hasGamepad()) {
+            padFocus.drawFocusRing(g);
+        }
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad() && padFocus.handleKey(keyCode)) {
+            int idx = padFocus.getFocusedIndex();
+            if (idx >= 0 && idx < buttons.size()) {
+                activeButtonIndex = idx;
+            }
+            return true;
+        }
+        return super.keyDown(keyCode);
     }
 
     @Override

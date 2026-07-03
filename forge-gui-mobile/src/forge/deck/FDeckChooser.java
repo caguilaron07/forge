@@ -14,6 +14,7 @@ import forge.game.GameFormat;
 import forge.util.MyRandom;
 import org.apache.commons.lang3.StringUtils;
 
+import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.utils.Align;
 import com.google.common.collect.Lists;
 
@@ -34,6 +35,7 @@ import forge.gui.GuiBase;
 import forge.gui.error.BugReporter;
 import forge.gui.interfaces.IGuiGame;
 import forge.itemmanager.DeckManager;
+import forge.itemmanager.ItemManager;
 import forge.itemmanager.ItemManagerConfig;
 import forge.itemmanager.filters.ItemFilter;
 import forge.localinstance.properties.ForgePreferences;
@@ -50,6 +52,9 @@ import forge.toolbox.FContainer;
 import forge.toolbox.FEvent;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FOptionPane;
+import forge.toolbox.focus.DisplayObjectFocusable;
+import forge.toolbox.focus.Focusable;
+import forge.toolbox.focus.FocusNavigator;
 import forge.toolbox.GuiChoose;
 import forge.toolbox.ListChooser;
 import forge.util.Utils;
@@ -85,6 +90,7 @@ public class FDeckChooser extends FScreen {
     private final ForgePreferences prefs = FModel.getPreferences();
     private FPref stateSetting = null;
     private FOptionPane optionPane;
+    private final FocusNavigator padFocus = new FocusNavigator();
 
     //Show dialog to select a deck
     public static void promptForDeck(String title, GameType gameType, boolean forAi, final Consumer<Deck> callback) {
@@ -238,6 +244,7 @@ public class FDeckChooser extends FScreen {
     public void onActivate() {
         if (cmbDeckTypes != null && cmbDeckTypes.getDropDownisVisible())
             cmbDeckTypes.hideDropDown();
+        refreshPadFocus();
         String selectedDeck = "";
         int index = 0;
         if (lstDecks.getSelectedItem() != null) {
@@ -1206,6 +1213,90 @@ public class FDeckChooser extends FScreen {
         else {
             btnRandom.setBounds(x, y, width, fieldHeight);
         }
+        refreshPadFocus();
+    }
+
+    private void refreshPadFocus() {
+        if (!Forge.hasGamepad()) {
+            return;
+        }
+        Focusable previous = padFocus.getFocused();
+        padFocus.clear();
+        if (cmbDeckTypes != null && cmbDeckTypes.isEnabled() && cmbDeckTypes.isVisible()) {
+            padFocus.register(cmbDeckTypes);
+        }
+        if (lstDecks.isEnabled() && lstDecks.isVisible()) {
+            padFocus.register(lstDecks);
+        }
+        if (btnNewDeck.isEnabled() && btnNewDeck.isVisible()) {
+            padFocus.register(btnNewDeck);
+        }
+        if (btnEditDeck.isEnabled() && btnEditDeck.isVisible()) {
+            padFocus.register(btnEditDeck);
+        }
+        if (btnViewDeck.isEnabled() && btnViewDeck.isVisible()) {
+            padFocus.register(btnViewDeck);
+        }
+        if (btnRandom.isEnabled() && btnRandom.isVisible()) {
+            padFocus.register(btnRandom);
+        }
+        padFocus.restoreFocus(previous);
+        if (padFocus.getFocused() == null) {
+            padFocus.setFocusedIndex(0);
+        }
+    }
+
+    private boolean delegateListNavigation(int keyCode) {
+        Focusable focused = padFocus.getFocused();
+        if (!(focused instanceof DisplayObjectFocusable adapter)) {
+            return false;
+        }
+        if (!(adapter.getOwner() instanceof ItemManager itemManager)) {
+            return false;
+        }
+        switch (keyCode) {
+            case Keys.DPAD_UP:
+            case Keys.DPAD_DOWN:
+            case Keys.DPAD_LEFT:
+            case Keys.DPAD_RIGHT:
+            case Keys.PAGE_UP:
+            case Keys.PAGE_DOWN:
+            case Keys.BUTTON_Y:
+            case Keys.BUTTON_L1:
+                return itemManager.keyDown(keyCode);
+            case Keys.BUTTON_A:
+            case Keys.ENTER:
+                if (lstDecks.getGameType() == GameType.DeckManager) {
+                    return itemManager.keyDown(keyCode);
+                }
+                accept();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    protected void drawOverlay(Graphics g) {
+        if (Forge.hasGamepad()) {
+            padFocus.drawFocusRing(g);
+        }
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad()) {
+            if (cmbDeckTypes != null && cmbDeckTypes.getDropDownisVisible() && cmbDeckTypes.keyDown(keyCode)) {
+                return true;
+            }
+            if (delegateListNavigation(keyCode)) {
+                return true;
+            }
+            if (padFocus.handleKey(keyCode)) {
+                return true;
+            }
+        }
+        return super.keyDown(keyCode);
     }
 
     public DeckType getSelectedDeckType() { return selectedDeckType; }

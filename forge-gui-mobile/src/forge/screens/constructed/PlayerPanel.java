@@ -42,6 +42,7 @@ import forge.toolbox.FList;
 import forge.toolbox.FOptionPane;
 import forge.toolbox.FTextField;
 import forge.toolbox.FToggleSwitch;
+import forge.toolbox.focus.FocusNavigator;
 import forge.util.Lang;
 import forge.util.NameGenerator;
 import forge.util.TextUtil;
@@ -427,6 +428,42 @@ public class PlayerPanel extends FContainer {
         if (btnVanguardAvatar.isVisible()) {
             btnVanguardAvatar.setBounds(x, y, w, fieldHeight);
         }
+    }
+
+    void registerPadFocusables(FocusNavigator navigator) {
+        registerIfFocusable(navigator, avatarLabel);
+        registerIfFocusable(navigator, sleeveLabel);
+        registerIfFocusable(navigator, txtPlayerName);
+        registerIfFocusable(navigator, nameRandomiser);
+        registerIfFocusable(navigator, humanAiSwitch);
+        registerIfFocusable(navigator, cbTeam);
+        registerIfFocusable(navigator, cbArchenemyTeam);
+        registerIfFocusable(navigator, devModeSwitch);
+        registerIfFocusable(navigator, btnDeck);
+        registerIfFocusable(navigator, btnCommanderDeck);
+        registerIfFocusable(navigator, btnOathbreakDeck);
+        registerIfFocusable(navigator, btnTinyLeadersDeck);
+        registerIfFocusable(navigator, btnBrawlDeck);
+        registerIfFocusable(navigator, btnSchemeDeck);
+        registerIfFocusable(navigator, btnPlanarDeck);
+        registerIfFocusable(navigator, btnVanguardAvatar);
+    }
+
+    private static void registerIfFocusable(FocusNavigator navigator, FDisplayObject object) {
+        if (object.isEnabled() && object.isVisible()) {
+            navigator.register(object);
+        }
+    }
+
+    boolean isComboDropDownOpen() {
+        return cbTeam.getDropDownisVisible() || cbArchenemyTeam.getDropDownisVisible();
+    }
+
+    boolean handleOpenComboKey(int keyCode) {
+        if (cbTeam.getDropDownisVisible() && cbTeam.keyDown(keyCode)) {
+            return true;
+        }
+        return cbArchenemyTeam.getDropDownisVisible() && cbArchenemyTeam.keyDown(keyCode);
     }
 
     public float getPreferredHeight() {
