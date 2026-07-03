@@ -544,9 +544,6 @@ public class MatchScreen extends FScreen {
         switch (keyCode) {
             case Keys.DPAD_DOWN:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
-                    if (MatchPadInput.isPlayerPadNavigationActive() || MatchPadInput.isBlockAttackerPadActive()) {
-                        return true;
-                    }
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -588,9 +585,6 @@ public class MatchScreen extends FScreen {
                 break;
             case Keys.DPAD_UP:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
-                    if (MatchPadInput.isPlayerPadNavigationActive() || MatchPadInput.isBlockAttackerPadActive()) {
-                        return true;
-                    }
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -671,6 +665,7 @@ public class MatchScreen extends FScreen {
                 break;
             case Keys.PAGE_DOWN:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)
+                        && MatchPadInput.isAttackPlayerConfirmActive()
                         && MatchPadInput.confirmPlayerOnSelectedPanel()) {
                     return true;
                 }

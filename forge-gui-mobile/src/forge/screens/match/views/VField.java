@@ -279,9 +279,8 @@ public class VField extends FContainer {
         @Override
         public void setNextSelected(int val) {
             if (MatchPadInput.isFieldPadSelectionFiltered() && getChildCount() > 0) {
-                if (selectRelativeFiltered(val)) {
-                    return;
-                }
+                selectRelativeFiltered(val);
+                return;
             }
             this.selected++;
             if (this.selected >= this.getChildCount())
@@ -337,7 +336,8 @@ public class VField extends FContainer {
         public void setPreviousSelected(int val) {
             if (this.getChildCount() < 1)
                 return;
-            if (MatchPadInput.isFieldPadSelectionFiltered() && selectRelativeFiltered(-val)) {
+            if (MatchPadInput.isFieldPadSelectionFiltered()) {
+                selectRelativeFiltered(-val);
                 return;
             }
             this.selected--;

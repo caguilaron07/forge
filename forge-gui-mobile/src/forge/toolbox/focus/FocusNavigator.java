@@ -80,11 +80,30 @@ public class FocusNavigator {
             return;
         }
         for (int i = 0; i < focusables.size(); i++) {
-            if (focusables.get(i) == target) {
+            if (sameFocusTarget(focusables.get(i), target)) {
                 setFocusedIndex(i);
                 return;
             }
         }
+    }
+
+    private static boolean sameFocusTarget(Focusable a, Focusable b) {
+        if (a == b) {
+            return true;
+        }
+        FDisplayObject ownerA = focusOwner(a);
+        FDisplayObject ownerB = focusOwner(b);
+        return ownerA != null && ownerA == ownerB;
+    }
+
+    private static FDisplayObject focusOwner(Focusable focusable) {
+        if (focusable instanceof DisplayObjectFocusable adapter) {
+            return adapter.getOwner();
+        }
+        if (focusable instanceof FDisplayObject object) {
+            return object;
+        }
+        return null;
     }
 
     public void setFocusedIndex(int index) {

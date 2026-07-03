@@ -451,7 +451,12 @@ public class PlayerPanel extends FContainer {
     }
 
     private static void registerIfFocusable(FocusNavigator navigator, FDisplayObject object) {
-        if (object.isEnabled() && object.isVisible()) {
+        if (!object.isEnabled() || !object.isVisible()) {
+            return;
+        }
+        if (object instanceof forge.toolbox.focus.Focusable focusable && focusable.isFocusable()) {
+            navigator.register(focusable);
+        } else {
             navigator.registerDisplayObject(object);
         }
     }

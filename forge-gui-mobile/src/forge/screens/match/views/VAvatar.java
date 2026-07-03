@@ -15,6 +15,7 @@ import forge.assets.FSkinFont;
 import forge.game.card.CounterEnumType;
 import forge.game.player.PlayerView;
 import forge.screens.match.MatchController;
+import forge.screens.match.MatchPadInput;
 import forge.toolbox.FDisplayObject;
 import forge.util.ThreadUtil;
 import forge.util.Utils;
@@ -186,6 +187,9 @@ public class VAvatar extends FDisplayObject {
     @Override
     public boolean keyDown(int keyCode) {
         if (keyCode == Input.Keys.PAGE_DOWN) { // left analog down to select current selected panel
+            if (!MatchPadInput.isAttackPlayerConfirmActive()) {
+                return false;
+            }
             //must invoke in game thread in case a dialog needs to be shown
             if (MatchController.getView().selectedPlayerPanel() != null) {
                 PlayerView selected = MatchController.getView().selectedPlayerPanel().getPlayer();

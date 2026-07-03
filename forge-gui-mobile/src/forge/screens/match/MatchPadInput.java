@@ -43,8 +43,11 @@ public final class MatchPadInput {
     }
 
     public static boolean isPlayerPadNavigationActive() {
-        Input input = getCurrentInput();
-        return input instanceof InputAttack || input instanceof InputSelectTargets;
+        return getCurrentInput() instanceof InputAttack;
+    }
+
+    public static boolean isAttackPlayerConfirmActive() {
+        return getCurrentInput() instanceof InputAttack;
     }
 
     public static boolean isBlockAttackerPadActive() {
