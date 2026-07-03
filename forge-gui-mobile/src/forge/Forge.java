@@ -1231,6 +1231,10 @@ public class Forge implements ApplicationListener {
                 if (container == null) {
                     container = currentScreen;
                     if (container == null) {
+                        //no screen yet (startup mode selector): let the splash handle pad/keys
+                        if (hasGamepad() && splashScreen != null && splashScreen.isShowModeSelector()) {
+                            return splashScreen.keyDown(keyCode);
+                        }
                         return false;
                     }
                 }
@@ -1561,7 +1565,11 @@ public class Forge implements ApplicationListener {
                         container = currentScreen;
                     }
                     if (container == null) {
-                        return;
+                        if (splashScreen != null && splashScreen.isShowModeSelector()) {
+                            container = splashScreen;
+                        } else {
+                            return;
+                        }
                     }
                     if (4 == axisIndex && value == 1f) { // L2 trigger axis; others use buttonL2
                         container.keyDown(Keys.ENTER);
@@ -1583,7 +1591,11 @@ public class Forge implements ApplicationListener {
                         container = currentScreen;
                     }
                     if (container == null) {
-                        return;
+                        if (splashScreen != null && splashScreen.isShowModeSelector()) {
+                            container = splashScreen;
+                        } else {
+                            return;
+                        }
                     }
                     if (controller.getMapping().buttonL2 == buttonIndex) {
                         container.keyDown(Keys.ENTER);

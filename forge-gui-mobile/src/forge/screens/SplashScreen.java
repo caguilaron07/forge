@@ -16,6 +16,7 @@ import forge.assets.FSkinTexture;
 import forge.toolbox.FButton;
 import forge.toolbox.FContainer;
 import forge.toolbox.FProgressBar;
+import forge.toolbox.focus.FocusNavigator;
 
 public class SplashScreen extends FContainer {
     private TextureRegion splashTexture;
@@ -24,6 +25,7 @@ public class SplashScreen extends FContainer {
     private FSkinFont disclaimerFont;
     private boolean preparedForDialogs, showModeSelector, init, animateLogo, hideBG, hideBtn, startClassic, clear;
     private FButton btnAdventure, btnHome;
+    private final FocusNavigator padFocus = new FocusNavigator();
     private BGAnimation bgAnimation;
 
     public SplashScreen() {
@@ -327,7 +329,23 @@ public class SplashScreen extends FContainer {
             add(btnHome);
             btnAdventure.setBounds(btn_x, btn_y + height + padding / 2, btn_w, height);
             add(btnAdventure);
+            //register the two mode buttons for gamepad d-pad navigation
+            padFocus.register(btnHome);
+            padFocus.register(btnAdventure);
         }
+        //draw the focus ring around the selected mode button when using a gamepad
+        if (init && Forge.hasGamepad()) {
+            padFocus.drawFocusRing(g);
+        }
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        //route gamepad d-pad/A to the mode selector buttons instead of triggering all children
+        if (showModeSelector && init && Forge.hasGamepad() && padFocus.handleKey(keyCode)) {
+            return true;
+        }
+        return super.keyDown(keyCode);
     }
 
     private void showSplash(Graphics g, float alpha) {
