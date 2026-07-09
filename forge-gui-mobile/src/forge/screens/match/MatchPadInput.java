@@ -167,16 +167,51 @@ public final class MatchPadInput {
     }
 
     // ---- Cross-zone cursor (L1/R1) --------------------------------------
-    // Step a single focus cursor through an ordered list of zones spanning
-    // every player: your hand, your two battlefield rows, then each
-    // opponent's two rows. Lands on a zone and selects its first card, so
-    // hand / opponent creatures / lands are all reachable without hunting
+    // Step a single focus cursor through an ordered list of stops spanning
+    // every player: the avatar (for targeting the player), the hand, the two
+    // battlefield rows, then the side-column zone tabs (graveyard, library,
+    // flashback, exile). Lands on a stop and selects its first card, so the
+    // whole left column and both players' zones are reachable without hunting
     // through the menu bar. Within-zone movement (d-pad), A/Y/B, and the
     // target/mana filtering all keep working via the existing handlers.
 
-    private static final int KIND_HAND = 0;
+    private static final int KIND_PLAYER = 0; //the avatar; A selects/targets the player
     private static final int KIND_ROW1 = 1;
     private static final int KIND_ROW2 = 2;
+    private static final int KIND_TAB = 3; //a side-column zone tab (see Slot.zone)
+
+    /** Side-column zone tabs to visit, in left-column order (hand is placed before the rows). */
+    private static final ZoneType[] TAB_ZONES = {
+            ZoneType.Graveyard, ZoneType.Library, ZoneType.Flashback, ZoneType.Exile
+    };
+
+    /**
+     * True while the cursor is resting on a player's avatar. Can't be derived
+     * from panel state (no tab selected + a row is always the "selected" row),
+     * so it's tracked explicitly and cleared whenever the d-pad moves the
+     * focus onto a card.
+     */
+    private static boolean playerFocused = false;
+
+    public static boolean isPlayerFocused() {
+        return playerFocused;
+    }
+
+    public static void clearPlayerFocus() {
+        playerFocused = false;
+    }
+
+    private static final class Slot {
+        final int panel;
+        final int kind;
+        final ZoneType zone; //only meaningful for KIND_TAB
+
+        Slot(int panel, int kind, ZoneType zone) {
+            this.panel = panel;
+            this.kind = kind;
+            this.zone = zone;
+        }
+    }
 
     /** @return true if the key was consumed */
     public static boolean cycleZone(MatchScreen screen, int direction) {
@@ -184,14 +219,14 @@ public final class MatchPadInput {
         if (panels.isEmpty()) {
             return false;
         }
-        List<int[]> slots = buildZoneSlots(screen, panels);
+        List<Slot> slots = buildZoneSlots(screen, panels);
         if (slots.isEmpty()) {
             return false;
         }
         int current = currentSlotIndex(screen, slots);
-        // step, skipping empty battlefield rows (the hand is always a valid stop)
+        // step, skipping empty stops (the avatar and hand are always valid)
         for (int i = 1; i <= slots.size(); i++) {
-            int[] slot = slots.get(Math.floorMod(current + direction * i, slots.size()));
+            Slot slot = slots.get(Math.floorMod(current + direction * i, slots.size()));
             if (slotHasContent(panels, slot)) {
                 focusSlot(screen, slot);
                 return true;
@@ -200,71 +235,110 @@ public final class MatchPadInput {
         return true; //nothing else to land on; still consume the key
     }
 
-    private static List<int[]> buildZoneSlots(MatchScreen screen, List<VPlayerPanel> panels) {
-        List<int[]> slots = new ArrayList<>();
+    private static List<Slot> buildZoneSlots(MatchScreen screen, List<VPlayerPanel> panels) {
+        List<Slot> slots = new ArrayList<>();
         int bottomIdx = panels.indexOf(screen.getBottomPlayerPanel());
-        if (bottomIdx >= 0) { //local player's zones first: hand, then both rows
-            slots.add(new int[]{bottomIdx, KIND_HAND});
-            slots.add(new int[]{bottomIdx, KIND_ROW1});
-            slots.add(new int[]{bottomIdx, KIND_ROW2});
+        if (bottomIdx >= 0) { //local player first
+            addPanelSlots(slots, bottomIdx, true);
         }
         for (int i = 0; i < panels.size(); i++) {
             if (i == bottomIdx) {
                 continue;
             }
-            slots.add(new int[]{i, KIND_ROW1});
-            slots.add(new int[]{i, KIND_ROW2});
+            addPanelSlots(slots, i, false);
         }
         return slots;
     }
 
-    private static int currentSlotIndex(MatchScreen screen, List<int[]> slots) {
+    private static void addPanelSlots(List<Slot> slots, int panelIdx, boolean local) {
+        slots.add(new Slot(panelIdx, KIND_PLAYER, null));
+        if (local) { //only the local player's hand is selectable
+            slots.add(new Slot(panelIdx, KIND_TAB, ZoneType.Hand));
+        }
+        slots.add(new Slot(panelIdx, KIND_ROW1, null));
+        slots.add(new Slot(panelIdx, KIND_ROW2, null));
+        for (ZoneType zone : TAB_ZONES) {
+            slots.add(new Slot(panelIdx, KIND_TAB, zone));
+        }
+    }
+
+    private static int currentSlotIndex(MatchScreen screen, List<Slot> slots) {
         int panelIdx = screen.getSelectedPlayerIndex();
         VPlayerPanel p = screen.selectedPlayerPanel();
         int kind;
+        ZoneType zone = null;
         VPlayerPanel.InfoTab tab = p.getSelectedTab();
-        if (tab != null && tab == p.getZoneTab(ZoneType.Hand)) {
-            kind = KIND_HAND;
+        if (playerFocused) {
+            kind = KIND_PLAYER;
+        } else if (tab != null) {
+            kind = KIND_TAB;
+            zone = zoneOfTab(p, tab);
         } else {
             kind = (p.getSelectedRow() == p.getField().getRow2()) ? KIND_ROW2 : KIND_ROW1;
         }
         for (int i = 0; i < slots.size(); i++) {
-            if (slots.get(i)[0] == panelIdx && slots.get(i)[1] == kind) {
+            Slot s = slots.get(i);
+            if (s.panel == panelIdx && s.kind == kind && s.zone == zone) {
                 return i;
             }
         }
         return 0;
     }
 
-    private static boolean slotHasContent(List<VPlayerPanel> panels, int[] slot) {
-        VPlayerPanel p = panels.get(slot[0]);
-        switch (slot[1]) {
+    /** @return the zone whose tab is currently selected on the panel, or null if it isn't one we track. */
+    private static ZoneType zoneOfTab(VPlayerPanel p, VPlayerPanel.InfoTab tab) {
+        if (tab == p.getZoneTab(ZoneType.Hand)) {
+            return ZoneType.Hand;
+        }
+        for (ZoneType zone : TAB_ZONES) {
+            if (tab == p.getZoneTab(zone)) {
+                return zone;
+            }
+        }
+        return null;
+    }
+
+    private static boolean slotHasContent(List<VPlayerPanel> panels, Slot slot) {
+        VPlayerPanel p = panels.get(slot.panel);
+        switch (slot.kind) {
+            case KIND_PLAYER:
+                return true; //the avatar is always a valid stop (for targeting the player)
             case KIND_ROW2:
                 return p.getField().getRow2().getChildCount() > 0;
             case KIND_ROW1:
                 return p.getField().getRow1().getChildCount() > 0;
-            case KIND_HAND:
+            case KIND_TAB:
             default:
-                return true; //always allow landing on the hand
+                if (slot.zone == ZoneType.Hand) {
+                    return true; //always allow landing on the hand
+                }
+                VPlayerPanel.InfoTab tab = p.getZoneTab(slot.zone);
+                return tab != null && tab.getDisplayArea() != null && tab.getDisplayArea().getCount() > 0;
         }
     }
 
-    private static void focusSlot(MatchScreen screen, int[] slot) {
+    private static void focusSlot(MatchScreen screen, Slot slot) {
         VPlayerPanel old = screen.selectedPlayerPanel();
         old.getSelectedRow().unselectCurrent();
         old.hideSelectedTab();
 
-        screen.setSelectedPlayerIndex(slot[0]);
+        screen.setSelectedPlayerIndex(slot.panel);
         VPlayerPanel p = screen.selectedPlayerPanel();
-        if (slot[1] == KIND_HAND) {
-            p.setSelectedZone(ZoneType.Hand);
+        playerFocused = (slot.kind == KIND_PLAYER);
+
+        if (slot.kind == KIND_PLAYER) {
+            //nothing to select in-panel; the orange avatar selector shows the focus
+            p.getSelectedRow().unselectCurrent();
+            p.hideSelectedTab();
+        } else if (slot.kind == KIND_TAB) {
+            p.setSelectedZone(slot.zone);
             VPlayerPanel.InfoTab tab = p.getSelectedTab();
             if (tab != null && tab.getDisplayArea() != null) {
-                tab.getDisplayArea().setNextSelected(1); //select first card in hand
+                tab.getDisplayArea().setNextSelected(1); //select first card in the zone
             }
         } else {
             p.hideSelectedTab();
-            VField.FieldRow row = (slot[1] == KIND_ROW2) ? p.getField().getRow2() : p.getField().getRow1();
+            VField.FieldRow row = (slot.kind == KIND_ROW2) ? p.getField().getRow2() : p.getField().getRow1();
             p.setSelectedRow(row);
             row.selectCurrent();
         }

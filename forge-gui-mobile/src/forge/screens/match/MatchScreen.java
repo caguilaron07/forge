@@ -544,6 +544,7 @@ public class MatchScreen extends FScreen {
         switch (keyCode) {
             case Keys.DPAD_DOWN:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    MatchPadInput.clearPlayerFocus(); //moving onto a card leaves the avatar
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -571,6 +572,7 @@ public class MatchScreen extends FScreen {
                     if (MatchPadInput.isPlayerPadNavigationActive() || MatchPadInput.isBlockAttackerPadActive()) {
                         return true;
                     }
+                    MatchPadInput.clearPlayerFocus(); //moving onto a card leaves the avatar
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -585,6 +587,7 @@ public class MatchScreen extends FScreen {
                 break;
             case Keys.DPAD_UP:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    MatchPadInput.clearPlayerFocus(); //moving onto a card leaves the avatar
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -612,6 +615,7 @@ public class MatchScreen extends FScreen {
                     if (MatchPadInput.isPlayerPadNavigationActive() || MatchPadInput.isBlockAttackerPadActive()) {
                         return true;
                     }
+                    MatchPadInput.clearPlayerFocus(); //moving onto a card leaves the avatar
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -639,6 +643,10 @@ public class MatchScreen extends FScreen {
                 break;
             case Keys.BUTTON_A:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    if (MatchPadInput.isPlayerFocused()) { //cursor on the avatar: select/target the player
+                        MatchPadInput.confirmPlayerOnSelectedPanel();
+                        return true;
+                    }
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {

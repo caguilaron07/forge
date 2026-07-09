@@ -178,7 +178,12 @@ public class VAvatar extends FDisplayObject {
         if (Forge.hasGamepad()) {
             if (MatchController.getView().selectedPlayerPanel() != null) {
                 if (MatchController.getView().selectedPlayerPanel().getPlayer() == player) {
-                    g.drawRect(w / 16f, Color.ORANGE, 0, 0, w, h);
+                    //brighter, thicker outline when the cross-zone cursor is resting on the avatar itself
+                    if (MatchPadInput.isPlayerFocused()) {
+                        g.drawRect(w / 8f, FSkinColor.getStandardColor(Color.YELLOW), 0, 0, w, h);
+                    } else {
+                        g.drawRect(w / 16f, Color.ORANGE, 0, 0, w, h);
+                    }
                 }
             }
         }
