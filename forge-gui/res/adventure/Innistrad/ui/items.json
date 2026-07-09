@@ -45,6 +45,15 @@
       "y": 120
     }  ,
     {
+      "type": "TextButton",
+      "name": "revealAll",
+      "text": "[%75]Reveal All",
+      "width": 60,
+      "height": 30,
+      "x": 414,
+      "y": 40
+    }  ,
+    {
       "type": "Label",
       "name": "playerGold",
 	  "style":"background",
