@@ -652,14 +652,14 @@ public class MatchScreen extends FScreen {
                     }
                 }
                 break;
-            case Keys.BUTTON_L1: //switch selected panels
+            case Keys.BUTTON_L1: //cross-zone cursor: step through hand + battlefield rows across players
             case Keys.BUTTON_R1:
                 if (Forge.hasGamepad() && !((FMenuBar) getHeader()).isShowingMenu(true)) {
                     if (MatchPadInput.isPlayerPadNavigationActive() || MatchPadInput.isBlockAttackerPadActive()) {
                         return true;
                     }
                     int direction = keyCode == Keys.BUTTON_L1 ? -1 : 1;
-                    MatchPadInput.cyclePlayerPanels(this, direction, false);
+                    MatchPadInput.cycleZone(this, direction);
                     return true;
                 }
                 break;

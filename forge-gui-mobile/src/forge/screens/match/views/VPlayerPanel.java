@@ -268,6 +268,15 @@ public class VPlayerPanel extends FContainer {
             selectedRow = field.getRow1();
     }
 
+    public void setSelectedRow(VField.FieldRow row) {
+        if (row != null)
+            selectedRow = row;
+    }
+
+    public InfoTab getZoneTab(ZoneType zoneType) {
+        return zoneTabs.get(zoneType);
+    }
+
     public VPhaseIndicator getPhaseIndicator() {
         return phaseIndicator;
     }
