@@ -4,6 +4,7 @@ import com.badlogic.gdx.utils.Timer;
 import org.apache.commons.lang3.StringUtils;
 
 import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
@@ -17,10 +18,11 @@ import forge.gui.interfaces.IButton;
 import forge.localinstance.skin.FSkinProp;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FEvent.FEventType;
+import forge.toolbox.focus.Focusable;
 import forge.util.TextBounds;
 import forge.util.Utils;
 
-public class FButton extends FDisplayObject implements IButton {
+public class FButton extends FDisplayObject implements IButton, Focusable {
     private static FSkinColor getDefaultForeColor() {
         if (Forge.isMobileAdventureMode)
             return FSkinColor.get(Colors.ADV_CLR_TEXT);
@@ -356,9 +358,35 @@ public class FButton extends FDisplayObject implements IButton {
         switch (keyCode) {
             case Keys.ENTER:
             case Keys.SPACE:
-                return trigger(); //trigger button on Enter or Space
+            case Keys.BUTTON_A:
+                return trigger(); //trigger button on Enter, Space, or gamepad A
         }
         return false;
+    }
+
+    @Override
+    public Rectangle getFocusBounds() {
+        return screenPos;
+    }
+
+    @Override
+    public boolean isFocusable() {
+        return isEnabled() && isVisible();
+    }
+
+    @Override
+    public void onFocusGained() {
+        setHovered(true);
+    }
+
+    @Override
+    public void onFocusLost() {
+        setHovered(false);
+    }
+
+    @Override
+    public boolean onFocusActivate() {
+        return trigger();
     }
 
     //use FEventHandler one except when references as IButton

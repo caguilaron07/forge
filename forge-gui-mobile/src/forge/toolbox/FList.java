@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
@@ -40,6 +42,7 @@ public class FList<T> extends FScrollPane implements Iterable<T> {
     private FSkinFont font;
     private ListItemRenderer<T> renderer;
     private int pressedIndex = -1;
+    private int padSelectedIndex = -1;
 
     public FList() {
         initialize();
@@ -216,6 +219,44 @@ public class FList<T> extends FScrollPane implements Iterable<T> {
         }
     }
 
+    public int getPadSelectedIndex() {
+        return padSelectedIndex;
+    }
+
+    public void setPadSelectedIndex(int index) {
+        if (items.isEmpty()) {
+            padSelectedIndex = -1;
+            return;
+        }
+        index = Math.max(0, Math.min(index, items.size() - 1));
+        padSelectedIndex = index;
+        scrollIntoView(index);
+        Gdx.graphics.requestRendering();
+    }
+
+    public boolean keyDown(int keyCode) {
+        if (!Forge.hasGamepad() || items.isEmpty()) {
+            return false;
+        }
+        switch (keyCode) {
+            case Keys.DPAD_DOWN:
+                setPadSelectedIndex(padSelectedIndex < 0 ? 0 : padSelectedIndex + 1);
+                return true;
+            case Keys.DPAD_UP:
+                setPadSelectedIndex(padSelectedIndex < 0 ? 0 : padSelectedIndex - 1);
+                return true;
+            case Keys.BUTTON_A:
+            case Keys.ENTER:
+                if (padSelectedIndex >= 0 && padSelectedIndex < items.size()) {
+                    T item = items.get(padSelectedIndex);
+                    return renderer.tap(padSelectedIndex, item, 0, 0, 1);
+                }
+                return false;
+            default:
+                return false;
+        }
+    }
+
     @Override
     protected void drawBackground(Graphics g) {
         //support scrolling texture with list
@@ -289,6 +330,9 @@ public class FList<T> extends FScrollPane implements Iterable<T> {
     protected FSkinColor getItemFillColor(int index) {
         if (index == pressedIndex) {
             return FList.getPressedColor();
+        }
+        if (Forge.hasGamepad() && index == padSelectedIndex) {
+            return FList.getPressedColor().alphaColor(0.65f);
         }
         return null;
     }

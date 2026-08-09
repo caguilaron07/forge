@@ -17,6 +17,7 @@ import forge.card.CardZoom;
 import forge.game.spellability.StackItemView;
 import forge.screens.match.views.VField;
 import forge.screens.match.views.VReveal;
+import forge.toolbox.FDialog;
 import forge.toolbox.FDisplayObject;
 import forge.util.CardRendererUtils;
 import forge.util.Utils;
@@ -70,6 +71,7 @@ import forge.sound.MusicPlaylist;
 import forge.sound.SoundSystem;
 import forge.toolbox.FCardPanel;
 import forge.toolbox.FScrollPane;
+import forge.toolbox.PadHints;
 
 public class MatchScreen extends FScreen {
     public static FSkinColor getBorderColor() {
@@ -363,6 +365,14 @@ public class MatchScreen extends FScreen {
     }
 
     @Override
+    protected void drawPadHintsOverlay(Graphics g) {
+        if (!Forge.hasGamepad() || !Forge.isLandscapeMode()) {
+            return;
+        }
+        PadHints.drawBar(g, getWidth(), getHeight(), PadHints.BarPosition.TOP, PadHints.MATCH_DEFAULT);
+    }
+
+    @Override
     protected void drawOverlay(Graphics g) {
         final GameView game = MatchController.instance.getGameView();
         if (game == null) {
@@ -401,7 +411,7 @@ public class MatchScreen extends FScreen {
 
         drawArcs(g);
         if (FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ENABLE_MAGNIFIER) && Forge.magnify && Forge.magnifyToggle) {
-            if (Forge.isLandscapeMode() && (!GuiBase.isAndroid() || Forge.hasGamepad()) && !CardZoom.isOpen() && potentialListener != null) {
+            if (Forge.isLandscapeMode() && (!GuiBase.isMobile() || Forge.hasGamepad()) && !CardZoom.isOpen() && potentialListener != null) {
                 for (FDisplayObject object : potentialListener) {
                     if (object != null) {
                         if (object instanceof FCardPanel cardPanel) {
@@ -522,11 +532,19 @@ public class MatchScreen extends FScreen {
     @Override
     public boolean keyDown(int keyCode) {
         // TODO: make the keyboard shortcuts configurable on Mobile
-        if (Forge.hasGamepad() && ((FMenuBar) getHeader()).isShowingMenu(false) && (keyCode == Keys.ESCAPE || keyCode == Keys.ENTER))
+        if (Forge.hasGamepad() && ((FMenuBar) getHeader()).isShowingMenu(false)
+                && (keyCode == Keys.ESCAPE || keyCode == Keys.ENTER)
+                && !FDialog.isDialogOpen()) {
             return false;
+        }
+        if (!((FMenuBar) getHeader()).isShowingMenu(true)
+                && MatchPadInput.handleKey(this, keyCode)) {
+            return true;
+        }
         switch (keyCode) {
             case Keys.DPAD_DOWN:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    MatchPadInput.clearPlayerFocus(); //moving onto a card leaves the avatar
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -551,6 +569,10 @@ public class MatchScreen extends FScreen {
                 break;
             case Keys.DPAD_RIGHT:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    if (MatchPadInput.isPlayerPadNavigationActive() || MatchPadInput.isBlockAttackerPadActive()) {
+                        return true;
+                    }
+                    MatchPadInput.clearPlayerFocus(); //moving onto a card leaves the avatar
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -565,6 +587,7 @@ public class MatchScreen extends FScreen {
                 break;
             case Keys.DPAD_UP:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    MatchPadInput.clearPlayerFocus(); //moving onto a card leaves the avatar
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -589,6 +612,10 @@ public class MatchScreen extends FScreen {
                 break;
             case Keys.DPAD_LEFT:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    if (MatchPadInput.isPlayerPadNavigationActive() || MatchPadInput.isBlockAttackerPadActive()) {
+                        return true;
+                    }
+                    MatchPadInput.clearPlayerFocus(); //moving onto a card leaves the avatar
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -616,6 +643,10 @@ public class MatchScreen extends FScreen {
                 break;
             case Keys.BUTTON_A:
                 if (!((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    if (MatchPadInput.isPlayerFocused()) { //cursor on the avatar: select/target the player
+                        MatchPadInput.confirmPlayerOnSelectedPanel();
+                        return true;
+                    }
                     try {
                         InfoTab selected = selectedPlayerPanel().getSelectedTab();
                         if (selected != null && selected.getDisplayArea().isVisible()) {
@@ -629,16 +660,22 @@ public class MatchScreen extends FScreen {
                     }
                 }
                 break;
-            case Keys.BUTTON_L1: //switch selected panels
-                if (Forge.hasGamepad()) {
-                    //nullPotentialListener();
-                    selectedPlayerPanel().hideSelectedTab();
-                    selectedPlayer--;
-                    if (selectedPlayer < 0)
-                        selectedPlayer = playerPanelsList.size() - 1;
-                    selectedPlayerPanel().closeSelectedTab();
-                    selectedPlayerPanel().getSelectedRow().unselectCurrent();
-                    //selectedPlayerPanel().setNextSelectedTab(true);
+            case Keys.BUTTON_L1: //cross-zone cursor: step through hand + battlefield rows across players
+            case Keys.BUTTON_R1:
+                if (Forge.hasGamepad() && !((FMenuBar) getHeader()).isShowingMenu(true)) {
+                    if (MatchPadInput.isPlayerPadNavigationActive() || MatchPadInput.isBlockAttackerPadActive()) {
+                        return true;
+                    }
+                    int direction = keyCode == Keys.BUTTON_L1 ? -1 : 1;
+                    MatchPadInput.cycleZone(this, direction);
+                    return true;
+                }
+                break;
+            case Keys.PAGE_DOWN:
+                if (!((FMenuBar) getHeader()).isShowingMenu(true)
+                        && MatchPadInput.isAttackPlayerConfirmActive()
+                        && MatchPadInput.confirmPlayerOnSelectedPanel()) {
+                    return true;
                 }
                 break;
             case Keys.ENTER:
@@ -647,7 +684,8 @@ public class MatchScreen extends FScreen {
                     return true;
                 }
                 return getActivePrompt().getBtnCancel().trigger(); //trigger Cancel if can't trigger OK
-            case Keys.ESCAPE: {
+            case Keys.ESCAPE:
+            case Keys.BUTTON_B: {
                 boolean cancelEligible = FModel.getPreferences().getPrefBoolean(FPref.UI_ALLOW_ESC_TO_END_TURN) || Forge.hasGamepad()
                         || !getActivePrompt().getBtnCancel().getText().equals(Forge.getLocalizer().getMessage("lblEndTurn"));
                 return cancelEligible && getActivePrompt().getBtnCancel().trigger();
@@ -1202,6 +1240,18 @@ public class MatchScreen extends FScreen {
     public void buildTouchListeners(float screenX, float screenY, List<FDisplayObject> listeners) {
         setPotentialListener(listeners);
         super.buildTouchListeners(screenX, screenY, listeners);
+    }
+
+    public int getSelectedPlayerIndex() {
+        return selectedPlayer;
+    }
+
+    public void setSelectedPlayerIndex(int index) {
+        if (playerPanelsList.isEmpty()) {
+            selectedPlayer = 0;
+            return;
+        }
+        selectedPlayer = Math.max(0, Math.min(index, playerPanelsList.size() - 1));
     }
 
     public VPlayerPanel selectedPlayerPanel() {

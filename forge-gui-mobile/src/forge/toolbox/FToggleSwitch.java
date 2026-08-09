@@ -1,5 +1,7 @@
 package forge.toolbox;
 
+import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
@@ -9,9 +11,10 @@ import forge.assets.FSkinColor.Colors;
 import forge.assets.FSkinFont;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FEvent.FEventType;
+import forge.toolbox.focus.Focusable;
 import forge.util.Utils;
 
-public class FToggleSwitch extends FDisplayObject {
+public class FToggleSwitch extends FDisplayObject implements Focusable {
     private static FSkinColor getActiveColor() {
         if (Forge.isMobileAdventureMode)
             return FSkinColor.get(Colors.ADV_CLR_ACTIVE);
@@ -183,5 +186,40 @@ public class FToggleSwitch extends FDisplayObject {
         x += PADDING;
         w -= 2 * PADDING;
         g.drawText(text, font, getForeColor(), x, y, w, h, false, Align.center, true);
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad() && (keyCode == Keys.BUTTON_A || keyCode == Keys.ENTER || keyCode == Keys.SPACE)) {
+            setToggled(!toggled, true);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public Rectangle getFocusBounds() {
+        return screenPos;
+    }
+
+    @Override
+    public boolean isFocusable() {
+        return isEnabled() && isVisible();
+    }
+
+    @Override
+    public void onFocusGained() {
+        setHovered(true);
+    }
+
+    @Override
+    public void onFocusLost() {
+        setHovered(false);
+    }
+
+    @Override
+    public boolean onFocusActivate() {
+        setToggled(!toggled, true);
+        return true;
     }
 }

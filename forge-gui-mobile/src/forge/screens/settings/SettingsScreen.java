@@ -1,11 +1,17 @@
 package forge.screens.settings;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import com.badlogic.gdx.Input.Keys;
+
 import forge.Forge;
 import forge.assets.FSkinColor;
 import forge.assets.FSkinColor.Colors;
 import forge.assets.FSkinFont;
 import forge.screens.FScreen;
 import forge.screens.TabPageScreen;
+import forge.screens.TabPageScreen.TabPage;
 import forge.screens.home.HomeScreen;
 import forge.util.Utils;
 
@@ -73,5 +79,35 @@ public class SettingsScreen extends TabPageScreen<SettingsScreen> {
     @Override
     public void showMenu() {
         Forge.back(); //hide settings screen when menu button pressed
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad()) {
+            switch (keyCode) {
+                case Keys.BUTTON_L1:
+                    controllerCycleTabs(-1);
+                    return true;
+                case Keys.BUTTON_R1:
+                    controllerCycleTabs(1);
+                    return true;
+            }
+            TabPage<SettingsScreen> page = getSelectedPage();
+            if (page != null && page.keyDown(keyCode)) {
+                return true;
+            }
+        }
+        return super.keyDown(keyCode);
+    }
+
+    private void controllerCycleTabs(int amount) {
+        List<TabPage<SettingsScreen>> visiblePages = tabPages.stream()
+                .filter(TabPage::isTabVisible)
+                .collect(Collectors.toList());
+        if (visiblePages.isEmpty()) {
+            return;
+        }
+        int current = visiblePages.indexOf(getSelectedPage());
+        setSelectedPage(visiblePages.get(Math.floorMod(current + amount, visiblePages.size())));
     }
 }

@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Align;
@@ -209,6 +210,8 @@ public class FOptionPane extends FDialog {
     protected final FDisplayObject displayObj;
     private final Consumer<Integer> callback;
     private final int defaultOption;
+    private final int optionsCount;
+    private int focusedButtonIndex;
     private final boolean centerIcon;
 
     public FOptionPane(final String message, final FSkinFont messageFont, final String title, final FImage icon, final FDisplayObject displayObj0, final List<String> options, final int defaultOption0, final Consumer<Integer> callback0) {
@@ -245,11 +248,57 @@ public class FOptionPane extends FDialog {
         callback = callback0;
 
         final int optionsSize = options.size();
+        optionsCount = optionsSize;
         for (int i = 0; i < optionsSize; i++) {
             final int option = i;
             initButton(i, options.get(i), e -> setResult(option));
         }
         defaultOption = defaultOption0;
+        focusedButtonIndex = defaultOption0;
+        if (focusedButtonIndex < 0 || !isButtonEnabled(focusedButtonIndex)) {
+            focusedButtonIndex = findFirstEnabledButton();
+        }
+        updateFocusedButtonVisual();
+    }
+
+    private int findFirstEnabledButton() {
+        for (int i = 0; i < optionsCount; i++) {
+            if (isButtonEnabled(i)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private int getNextEnabledButton(int start, int direction) {
+        if (optionsCount == 0) {
+            return start;
+        }
+        for (int step = 1; step <= optionsCount; step++) {
+            int index = Math.floorMod(start + direction * step, optionsCount);
+            if (isButtonEnabled(index)) {
+                return index;
+            }
+        }
+        return start;
+    }
+
+    private void setFocusedButton(int index) {
+        if (index < 0 || index >= optionsCount || !isButtonEnabled(index)) {
+            return;
+        }
+        focusedButtonIndex = index;
+        updateFocusedButtonVisual();
+    }
+
+    private void updateFocusedButtonVisual() {
+        for (int i = 0; i < optionsCount; i++) {
+            FButton button = getButton(i);
+            if (button != null) {
+                button.setHovered(i == focusedButtonIndex);
+            }
+        }
+        Gdx.graphics.requestRendering();
     }
 
     public void setResult(final int option) {
@@ -327,6 +376,36 @@ public class FOptionPane extends FDialog {
 
     @Override
     public boolean keyDown(final int keyCode) {
+        if (Forge.hasGamepad()) {
+            switch (keyCode) {
+                case Keys.DPAD_LEFT:
+                    setFocusedButton(getNextEnabledButton(focusedButtonIndex, -1));
+                    return true;
+                case Keys.DPAD_RIGHT:
+                    setFocusedButton(getNextEnabledButton(focusedButtonIndex, 1));
+                    return true;
+                case Keys.ENTER:
+                case Keys.SPACE:
+                case Keys.BUTTON_A:
+                    if (focusedButtonIndex >= 0 && isButtonEnabled(focusedButtonIndex)) {
+                        setResult(focusedButtonIndex);
+                    }
+                    return true;
+                case Keys.ESCAPE:
+                case Keys.BACK:
+                case Keys.BUTTON_B:
+                    if (Forge.endKeyInput()) { return true; }
+                    if (defaultOption == -1) {
+                        hide();
+                        return true;
+                    }
+                    if (isButtonEnabled(1)) {
+                        setResult(isButtonEnabled(2) ? 2 : 1);
+                    }
+                    return true;
+            }
+            return false;
+        }
         switch (keyCode) {
         case Keys.ENTER:
         case Keys.SPACE:

@@ -1,6 +1,7 @@
 package forge.deck;
 
 import com.badlogic.gdx.Input.Keys;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Align;
 import forge.Forge;
@@ -38,6 +39,8 @@ import forge.screens.match.views.VLog;
 import forge.toolbox.*;
 import forge.toolbox.FEvent.FEventHandler;
 import forge.toolbox.FEvent.FEventType;
+import forge.toolbox.focus.Focusable;
+import forge.toolbox.focus.FocusNavigator;
 import forge.util.*;
 import forge.util.storage.IStorage;
 import org.apache.commons.lang3.StringUtils;
@@ -425,6 +428,7 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
     private FEventHandler saveHandler;
 
     protected final DeckHeader deckHeader;
+    private final FocusNavigator padFocus = new FocusNavigator();
 
     private boolean tabsInitialized = false;
 
@@ -493,6 +497,7 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
             FPopupMenu menu = createMoreOptionsMenu();
             menu.show(deckHeader.btnMoreOptions, 0, deckHeader.btnMoreOptions.getHeight());
         });
+        refreshPadFocus();
     }
 
     protected void cacheTabPages() {
@@ -542,7 +547,55 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
         boolean allowSave = allowSave();
         deckHeader.btnSave.setEnabled(allowSave);
         deckHeader.btnSave.setVisible(allowSave);
+        boolean canRename = allowRename();
+        deckHeader.lblName.setCommand(canRename ? e -> {
+            if (deck == null) {
+                return;
+            }
+            Localizer localizer = Forge.getLocalizer();
+            FOptionPane.showInputDialog(localizer.getMessage("lblNewNameDeck"), deck.getName(), result -> {
+                if (!StringUtils.isEmpty(result)) {
+                    getDeckController().rename(result);
+                }
+            });
+        } : null);
         deckHeader.revalidate();
+        refreshPadFocus();
+    }
+
+    private void refreshPadFocus() {
+        if (!Forge.hasGamepad()) {
+            return;
+        }
+        Focusable previous = padFocus.getFocused();
+        padFocus.clear();
+        deckHeader.registerPadFocusables(padFocus);
+        if (getSelectedPage() instanceof CardManagerPage cardPage) {
+            padFocus.register(new CardManagerPadFocus(cardPage));
+        }
+        padFocus.restoreFocus(previous);
+        if (padFocus.getFocused() == null) {
+            padFocus.setFocusedIndex(0);
+        }
+    }
+
+    @Override
+    public void setSelectedPage(TabPage<FDeckEditor> tabPage0) {
+        super.setSelectedPage(tabPage0);
+        refreshPadFocus();
+    }
+
+    @Override
+    public void onActivate() {
+        super.onActivate();
+        refreshPadFocus();
+    }
+
+    @Override
+    protected void drawOverlay(Graphics g) {
+        if (Forge.hasGamepad()) {
+            padFocus.drawFocusRing(g);
+        }
     }
 
     public void setHeaderText(String headerText) {
@@ -1023,15 +1076,31 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
 
     @Override
     public boolean keyDown(int keyCode) {
-        try {
-            //Pass input on to currently selected page. Calling super would invoke keypresses on all tabs.
-            //Doing it first also gives the tab and card manager priority.
-            //TODO: Generalize this to the TabPageScreen level if possible
-            if(getSelectedPage().keyDown(keyCode))
+        if (Forge.hasGamepad()) {
+            switch (keyCode) {
+                case Keys.BUTTON_L1:
+                    controllerCycleTabs(-1);
+                    return true;
+                case Keys.BUTTON_R1:
+                    controllerCycleTabs(1);
+                    return true;
+            }
+            Focusable focused = padFocus.getFocused();
+            if (focused instanceof CardManagerPadFocus cardFocus && cardFocus.handleKey(keyCode)) {
                 return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+            }
+            if (padFocus.handleKey(keyCode)) {
+                return true;
+            }
+        } else {
+            try {
+                if (getSelectedPage().keyDown(keyCode)) {
+                    return true;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
         }
 
         switch (keyCode) {
@@ -1043,15 +1112,19 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
                 if (Forge.endKeyInput() || tabHeader.btnBack.trigger())
                     return true;
                 break;
+            case Keys.ENTER:
+            case Keys.SPACE:
+                if (Forge.hasGamepad() && allowSave()) {
+                    save(null);
+                    return true;
+                }
+                break;
             case Keys.S: //save deck on Ctrl+S
                 if (KeyInputAdapter.isCtrlKeyDown() && allowSave()) {
                     save(null);
                     return true;
                 }
                 break;
-            case Keys.BUTTON_R1:
-                controllerCycleTabs(1);
-                return true;
             case Keys.F5:
                 revalidate();
                 break;
@@ -1201,6 +1274,87 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
                     .build();
             draftLogContainer.setDropdownOwner(btnDraftLog);
             this.add(btnDraftLog);
+        }
+
+        void registerPadFocusables(FocusNavigator navigator) {
+            if (lblName.isFocusable()) {
+                navigator.register(lblName);
+            }
+            if (btnDraftLog != null && btnDraftLog.isEnabled() && btnDraftLog.isVisible()) {
+                navigator.registerDisplayObject(btnDraftLog);
+            }
+            if (btnSave.isVisible() && btnSave.isEnabled()) {
+                navigator.register(btnSave);
+            }
+            if (btnMoreOptions.isEnabled() && btnMoreOptions.isVisible()) {
+                navigator.register(btnMoreOptions);
+            }
+        }
+    }
+
+    /** Routes pad input to a deck editor card list without opening the context menu on A. */
+    private static final class CardManagerPadFocus implements Focusable {
+        private final CardManagerPage page;
+
+        private CardManagerPadFocus(CardManagerPage page0) {
+            page = page0;
+        }
+
+        @Override
+        public Rectangle getFocusBounds() {
+            return page.cardManager.screenPos;
+        }
+
+        @Override
+        public boolean isFocusable() {
+            return page.isVisible() && page.cardManager.isEnabled() && page.cardManager.isVisible();
+        }
+
+        @Override
+        public void onFocusGained() {
+        }
+
+        @Override
+        public void onFocusLost() {
+        }
+
+        @Override
+        public boolean onFocusActivate() {
+            if (page.cardManager.getSelectionCount() > 0) {
+                page.cardManager.activateSelectedItems();
+                return true;
+            }
+            return false;
+        }
+
+        boolean handleKey(int keyCode) {
+            if (!isFocusable()) {
+                return false;
+            }
+            if (page.cardManager.isContextMenuOpen()) {
+                return page.cardManager.keyDown(keyCode);
+            }
+            switch (keyCode) {
+                case Keys.BUTTON_A:
+                case Keys.ENTER:
+                    return onFocusActivate();
+                case Keys.BUTTON_X:
+                    if (page.cardManager.getSelectionCount() > 0) {
+                        page.cardManager.showMenu(false);
+                        return true;
+                    }
+                    return false;
+                case Keys.DPAD_UP:
+                case Keys.DPAD_DOWN:
+                case Keys.DPAD_LEFT:
+                case Keys.DPAD_RIGHT:
+                case Keys.PAGE_UP:
+                case Keys.PAGE_DOWN:
+                case Keys.BUTTON_Y:
+                    return page.cardManager.keyDown(keyCode);
+                default:
+                    return false;
+            }
         }
     }
 
@@ -1673,6 +1827,41 @@ public class FDeckEditor extends TabPageScreen<FDeckEditor> {
                 width -= 2 * x;
             }
             cardManager.setBounds(x, 0, width, height);
+        }
+
+        @Override
+        public boolean keyDown(int keyCode) {
+            if (!Forge.hasGamepad()) {
+                return false;
+            }
+            if (cardManager.isContextMenuOpen()) {
+                return cardManager.keyDown(keyCode);
+            }
+            switch (keyCode) {
+                case Keys.BUTTON_A:
+                case Keys.ENTER:
+                    if (cardManager.getSelectionCount() > 0) {
+                        cardManager.activateSelectedItems();
+                        return true;
+                    }
+                    return false;
+                case Keys.BUTTON_X:
+                    if (cardManager.getSelectionCount() > 0) {
+                        cardManager.showMenu(false);
+                        return true;
+                    }
+                    return false;
+                case Keys.DPAD_UP:
+                case Keys.DPAD_DOWN:
+                case Keys.DPAD_LEFT:
+                case Keys.DPAD_RIGHT:
+                case Keys.PAGE_UP:
+                case Keys.PAGE_DOWN:
+                case Keys.BUTTON_Y:
+                    return cardManager.keyDown(keyCode);
+                default:
+                    return false;
+            }
         }
     }
 

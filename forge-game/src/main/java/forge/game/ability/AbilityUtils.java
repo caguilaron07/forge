@@ -909,7 +909,13 @@ public class AbilityUtils {
     @SuppressWarnings("unchecked")
     public static PlayerCollection getDefinedPlayers(final Card card, final String def, CardTraitBase sa) {
         final PlayerCollection players = new PlayerCollection();
-        final Player player = sa instanceof SpellAbility ? ((SpellAbility)sa).getActivatingPlayer() : card.getController();
+        Player player = null;
+        if (sa instanceof SpellAbility) {
+            player = ((SpellAbility) sa).getActivatingPlayer();
+        }
+        if (player == null) {
+            player = card.getController();
+        }
         final Game game = card == null ? null : card.getGame();
         String changedDef = (def == null) ? "You" : applyAbilityTextChangeEffects(def, sa); // default to Self
         final String[] incR = changedDef.split("\\.", 2);
@@ -2057,6 +2063,9 @@ public class AbilityUtils {
         if (sq[0].equals("CardToughness")) {
             return doXMath(c.getNetToughness(), expr, c, ctb);
         }
+        if (sq[0].equals("CardBaseToughness")) {
+            return doXMath(c.getCurrentToughness(), expr, c, ctb);
+        }
         if (sq[0].equals("CardSumPT")) {
             return doXMath(c.getNetPower() + c.getNetToughness(), expr, c, ctb);
         }
@@ -2716,7 +2725,7 @@ public class AbilityUtils {
         }
 
         if (sq[0].startsWith("PlanarDiceSpecialActionThisTurn")) {
-            return game.getPhaseHandler().getPlanarDiceSpecialActionThisTurn();
+            return doXMath(game.getPhaseHandler().getPlanarDiceSpecialActionThisTurn(), expr, c, ctb);
         }
 
         if (sq[0].equals("TotalTurns")) {
@@ -2780,7 +2789,7 @@ public class AbilityUtils {
                     activated++;
                 }
             }
-            return activated;
+            return doXMath(activated, s, c, ctb);
         }
 
         // Count$ThisTurnEntered <ZoneDestination> [from <ZoneOrigin>] <Valid>
@@ -2887,9 +2896,9 @@ public class AbilityUtils {
     }
 
     public static final List<SpellAbility> getBasicSpellsFromPlayEffect(final Card tgtCard, final Player controller) {
-        return getSpellsFromPlayEffect(tgtCard, controller, CardStateName.Original, false);
+        return getSpellsFromPlayEffect(tgtCard, controller, CardStateName.Original, false, null);
     }
-    public static final List<SpellAbility> getSpellsFromPlayEffect(final Card tgtCard, final Player controller, CardStateName state, boolean withAltCost) {
+    public static final List<SpellAbility> getSpellsFromPlayEffect(final Card tgtCard, final Player controller, CardStateName state, boolean withAltCost, Predicate<SpellAbility> validSA) {
         List<SpellAbility> sas = new ArrayList<>();
         List<SpellAbility> list = new ArrayList<>();
         collectSpellsForPlayEffect(list, tgtCard.getState(tgtCard.getCurrentStateName()), controller, withAltCost);
@@ -2897,20 +2906,21 @@ public class AbilityUtils {
 
         if (tgtCard.isFaceDown()) {
             collectSpellsForPlayEffect(list, original, controller, withAltCost);
-        } else {
-            if (state == CardStateName.Backside && !tgtCard.isModal() && tgtCard.isPermanent() && !tgtCard.isAura()) {
-                // casting defeated battle
-                Spell sp = new SpellPermanent(tgtCard, original);
-                sp.setCardState(original);
-                list.add(sp);
-            }
-            if (tgtCard.isModal() && tgtCard.hasState(CardStateName.Backside)) {
-                collectSpellsForPlayEffect(list, tgtCard.getState(CardStateName.Backside), controller, withAltCost);
-            }
+        } else if (state == CardStateName.Backside && !tgtCard.isModal() && tgtCard.isPermanent() && !tgtCard.isAura()) {
+            // casting defeated battle
+            Spell sp = new SpellPermanent(tgtCard, original);
+            sp.setCardState(original);
+            list.add(sp);
+        }
+        if (tgtCard.isModal() && tgtCard.hasState(CardStateName.Backside)) {
+            collectSpellsForPlayEffect(list, tgtCard.getState(CardStateName.Backside), controller, withAltCost);
         }
 
         for (SpellAbility s : list) {
             if (s.isLandAbility()) {
+                if (validSA != null && !validSA.test(s)) {
+                    continue;
+                }
                 s.setActivatingPlayer(controller);
                 // CR 305.3
                 if (controller.getGame().getPhaseHandler().isPlayerTurn(controller) && controller.canPlayLand(tgtCard, true, s)) {
@@ -2921,7 +2931,16 @@ public class AbilityUtils {
                 newSA.getRestrictions().setZone(null);
                 newSA.setCastFromPlayEffect(true);
                 // extra timing restrictions still apply
-                if (newSA.canPlay()) {
+                Card newHost = newSA.canPlayFromHost();
+                if (newHost != null) {
+                    if (validSA != null) {
+                        Card oldHost = newSA.getHostCard();
+                        newSA.setHostCard(newHost);
+                        if (!validSA.test(newSA)) {
+                            continue;
+                        }
+                        newSA.setHostCard(oldHost);
+                    }
                     sas.add(newSA);
                 }
             }

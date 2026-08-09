@@ -10,6 +10,7 @@ import forge.gui.FThreads;
 import forge.localinstance.properties.ForgePreferences;
 import forge.model.FModel;
 import forge.screens.match.MatchController;
+import forge.screens.match.MatchPadInput;
 import forge.screens.match.MatchScreen;
 import forge.screens.match.views.VCardDisplayArea.CardAreaPanel;
 import forge.toolbox.FCardPanel;
@@ -277,6 +278,10 @@ public class VField extends FContainer {
 
         @Override
         public void setNextSelected(int val) {
+            if (MatchPadInput.isFieldPadSelectionFiltered() && getChildCount() > 0) {
+                selectRelativeFiltered(val);
+                return;
+            }
             this.selected++;
             if (this.selected >= this.getChildCount())
                 this.selected = this.getChildCount() - 1;
@@ -285,6 +290,30 @@ public class VField extends FContainer {
             this.selectedChild = getChildAt(this.selected);
             this.selectedChild.setHovered(true);
             MatchScreen.setPotentialListener(Arrays.asList(this.selectedChild));
+        }
+
+        private boolean selectRelativeFiltered(int step) {
+            int childCount = getChildCount();
+            int start = this.selected < 0 ? -1 : this.selected;
+            for (int offset = 1; offset <= childCount; offset++) {
+                int next = Math.floorMod(start + step * offset, childCount);
+                FDisplayObject child = getChildAt(next);
+                if (!(child instanceof FCardPanel panel)) {
+                    continue;
+                }
+                if (!MatchPadInput.isValidFieldPadTarget(panel.getCard())) {
+                    continue;
+                }
+                this.selected = next;
+                if (this.selectedChild != null) {
+                    this.selectedChild.setHovered(false);
+                }
+                this.selectedChild = child;
+                this.selectedChild.setHovered(true);
+                MatchScreen.setPotentialListener(Arrays.asList(this.selectedChild));
+                return true;
+            }
+            return false;
         }
 
         public void selectCurrent() {
@@ -307,6 +336,10 @@ public class VField extends FContainer {
         public void setPreviousSelected(int val) {
             if (this.getChildCount() < 1)
                 return;
+            if (MatchPadInput.isFieldPadSelectionFiltered()) {
+                selectRelativeFiltered(-val);
+                return;
+            }
             this.selected--;
             if (this.selected < 0)
                 this.selected = 0;

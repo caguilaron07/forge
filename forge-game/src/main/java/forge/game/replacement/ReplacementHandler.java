@@ -42,6 +42,7 @@ import forge.game.ability.ApiType;
 import forge.game.player.Player;
 import forge.game.player.PlayerCollection;
 import forge.game.spellability.AbilitySub;
+import forge.game.spellability.Spell;
 import forge.game.spellability.SpellAbility;
 import forge.game.zone.Zone;
 import forge.game.zone.ZoneType;
@@ -102,6 +103,20 @@ public class ReplacementHandler {
             Card c = preList.get(crd);
             Zone cardZone = game.getZoneOf(c);
 
+            // all tap/untap/produce mana replacements are active from the battlefield or the
+            // command zone (e.g. Ood Sphere); skip other zones - this is a major hot path, as
+            // canTap/canUntap run a cantHappenCheck per mana source per AI cost check, and
+            // groupSourcesByManaColor runs a ProduceMana check per mana ability on top of that
+            // (performance mode only, in case a custom card wants one active from elsewhere)
+            if (Spell.isPerformanceMode()
+                    && (event == ReplacementType.Tap || event == ReplacementType.Untap
+                            || event == ReplacementType.ProduceMana)
+                    && cardZone != null
+                    && cardZone.getZoneType() != ZoneType.Battlefield
+                    && cardZone.getZoneType() != ZoneType.Command) {
+                return true;
+            }
+
             // only when not prelist
             boolean noLKIstate = c != crd || event != ReplacementType.Moved || c.isImmutable() || runParams.get(AbilityKey.LastStateBattlefield) == null;
             if (!noLKIstate) {
@@ -125,6 +140,9 @@ public class ReplacementHandler {
                         && replacementEffect.requirementsCheck(game)
                         && replacementEffect.canReplace(runParams)) {
                     possibleReplacers.add(replacementEffect);
+                    if (layer == ReplacementLayer.CantHappen) {
+                        return false;
+                    }
                 }
             }
             return true;
@@ -266,8 +284,6 @@ public class ReplacementHandler {
      */
     private ReplacementResult executeReplacement(final Map<AbilityKey, Object> runParams,
         final ReplacementEffect replacementEffect, final Player decider) {
-        SpellAbility effectSA = null;
-
         Card host = replacementEffect.getHostCard();
         // AlternateState for OriginsPlaneswalker
         // FaceDown for cards like Necropotence
@@ -276,7 +292,7 @@ public class ReplacementHandler {
         }
 
         // TODO: the source of replacement effect should be the source of the original effect
-        effectSA = replacementEffect.ensureAbility();
+        SpellAbility effectSA = replacementEffect.ensureAbility();
         if (effectSA != null) {
             SpellAbility tailend = effectSA;
             do {
@@ -285,7 +301,7 @@ public class ReplacementHandler {
                 tailend.setReplacingObject(AbilityKey.OriginalParams, runParams);
                 tailend.setReplacingObjectsFrom(runParams, AbilityKey.InternalTriggerTable, AbilityKey.SimultaneousETB);
                 tailend = tailend.getSubAbility();
-            } while(tailend != null);
+            } while (tailend != null);
 
             effectSA.setLastStateBattlefield((CardCollectionView) Objects.requireNonNullElse(runParams.get(AbilityKey.LastStateBattlefield), game.getLastStateBattlefield()));
             effectSA.setLastStateGraveyard((CardCollectionView) Objects.requireNonNullElse(runParams.get(AbilityKey.LastStateGraveyard), game.getLastStateGraveyard()));
@@ -299,10 +315,8 @@ public class ReplacementHandler {
         // Decider gets to choose whether or not to apply the replacement.
         if (replacementEffect.hasParam("Optional")) {
             Player optDecider = decider;
-            if (replacementEffect.hasParam("OptionalDecider") && effectSA != null) {
-                effectSA.setActivatingPlayer(host.getController());
-                optDecider = AbilityUtils.getDefinedPlayers(host,
-                        replacementEffect.getParam("OptionalDecider"), effectSA).get(0);
+            if (replacementEffect.hasParam("OptionalDecider")) {
+                optDecider = AbilityUtils.getDefinedPlayers(host, replacementEffect.getParam("OptionalDecider"), effectSA).get(0);
             }
 
             String name = Objects.requireNonNullElse(host.getRenderForUI() ? host.getCardForUi() : null, host).getTranslatedName();
@@ -335,7 +349,7 @@ public class ReplacementHandler {
         }
 
         if ("True".equals(replacementEffect.getParam("Skip"))) {
-            return ReplacementResult.Skipped; // Event is skipped.
+            return ReplacementResult.Skipped;
         }
         Player player = host.getController();
 
@@ -343,6 +357,7 @@ public class ReplacementHandler {
             ApiType apiType = effectSA.getApi();
             if (replacementEffect.getMode() != ReplacementType.DamageDone ||
                 (apiType == ApiType.ReplaceDamage || apiType == ApiType.ReplaceSplitDamage || apiType == ApiType.ReplaceEffect)) {
+                effectSA.setActivatingPlayer(host.getController());
                 player.getController().playSpellAbilityNoStack(effectSA, true);
             } else {
                 // The SA if buffered, but replacement result should be set to Replaced
@@ -910,24 +925,21 @@ public class ReplacementHandler {
      * @return true if there is some resolved fog effect
      */
     public final boolean isPreventCombatDamageThisTurn() {
-        final List<ReplacementEffect> list = Lists.newArrayList();
-        game.forEachCardInGame(new Visitor<Card>() {
-            @Override
-            public boolean visit(Card c) {
-                for (final ReplacementEffect re : c.getReplacementEffects()) {
-                    if (re.getMode() == ReplacementType.DamageDone
-                            && re.getLayer() == ReplacementLayer.Other
-                            && re.hasParam("Prevent") && re.getParam("Prevent").equals("True")
-                            && re.hasParam("IsCombat") && re.getParam("IsCombat").equals("True")
-                            && !re.hasParam("ValidSource") && !re.hasParam("ValidTarget")
-                            && re.zonesCheck(game.getZoneOf(c))) {
-                        list.add(re);
-                    }
+        // a fog effect can only be active from a zone in STATIC_ABILITIES_SOURCE_ZONES
+        // (zonesCheck below rejects other zones), so don't scan libraries and hands
+        for (final Card c : game.getCardsIn(ZoneType.STATIC_ABILITIES_SOURCE_ZONES)) {
+            for (final ReplacementEffect re : c.getReplacementEffects()) {
+                if (re.getMode() == ReplacementType.DamageDone
+                        && re.getLayer() == ReplacementLayer.Other
+                        && "True".equals(re.getParam("Prevent"))
+                        && "True".equals(re.getParam("IsCombat"))
+                        && !re.hasParam("ValidSource") && !re.hasParam("ValidTarget")
+                        && re.zonesCheck(game.getZoneOf(c))) {
+                    return true;
                 }
-                return true;
             }
-        });
-        return !list.isEmpty();
+        }
+        return false;
     }
 
     public boolean isReplacing() {

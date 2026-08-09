@@ -1,5 +1,6 @@
 package forge.screens.settings;
 
+import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.utils.Align;
 import com.google.common.collect.Lists;
 import forge.Forge;
@@ -16,7 +17,7 @@ import forge.localinstance.properties.ForgeConstants;
 import forge.localinstance.properties.ForgeNetPreferences;
 import forge.localinstance.properties.ForgePreferences;
 import forge.localinstance.properties.ForgePreferences.FPref;
-import forge.localinstance.properties.PreferencesStore;
+import forge.localinstance.properties.IPreferences;
 import forge.model.FModel;
 import forge.screens.FScreen;
 import forge.screens.TabPageScreen;
@@ -32,6 +33,8 @@ import forge.toolbox.FList;
 import forge.toolbox.FOptionPane;
 import forge.toolbox.FScrollPane;
 import forge.toolbox.FTextField;
+import forge.toolbox.focus.FocusNavigator;
+import forge.toolbox.focus.Focusable;
 import forge.util.Lang;
 import forge.util.Utils;
 
@@ -40,6 +43,7 @@ import java.util.*;
 public class SettingsPage extends TabPage<SettingsScreen> {
     private final FTextField txtSearch = add(new FTextField());
     private final FGroupList<Setting> lstSettings = add(new FGroupList<>());
+    private final FocusNavigator padFocus = new FocusNavigator();
     private final CustomSelectSetting settingSkins;
     private final CustomSelectSetting settingCJKFonts;
 
@@ -49,6 +53,7 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         lstSettings.setListItemRenderer(new SettingRenderer());
         txtSearch.setFont(FSkinFont.get(12));
         txtSearch.setGhostText(Forge.getLocalizer().getMessage("lblSearch"));
+        txtSearch.setLiveChangeEvents(true); //filter as characters are typed
         txtSearch.setChangedHandler(e -> applySearch());
 
         lstSettings.addGroup(Forge.getLocalizer().getMessage("lblGeneralSettings"));
@@ -257,6 +262,9 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         lstSettings.addItem(new BooleanSetting(FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS,
             Forge.getLocalizer().getMessage("cbShowActionableHighlights"),
             Forge.getLocalizer().getMessage("nlShowActionableHighlights")), 1);
+        lstSettings.addItem(new BooleanSetting(FPref.UI_SHOW_AUTOTAP_PREVIEW,
+            Forge.getLocalizer().getMessage("cbShowAutoTapPreview"),
+            Forge.getLocalizer().getMessage("nlShowAutoTapPreview")), 1);
         lstSettings.addItem(new BooleanSetting(FPref.UI_SHOW_LINKED_EXILE_CARDS,
             Forge.getLocalizer().getMessage("cbShowLinkedExileCards"),
             Forge.getLocalizer().getMessage("nlShowLinkedExileCards")), 1);
@@ -739,6 +747,44 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         settingCJKFonts.updateOptions(FSkinFont.getAllCJKFonts());
     }
 
+    @Override
+    protected void onActivate() {
+        refreshPadFocus();
+    }
+
+    private void refreshPadFocus() {
+        if (!Forge.hasGamepad()) {
+            return;
+        }
+        Focusable previous = padFocus.getFocused();
+        padFocus.clear();
+        padFocus.setScrollPane(lstSettings);
+        padFocus.registerDisplayObject(txtSearch);
+        padFocus.register(lstSettings);
+        padFocus.restoreFocus(previous);
+        if (padFocus.getFocused() == null) {
+            padFocus.setFocusedIndex(1);
+        }
+    }
+
+    @Override
+    protected void drawOverlay(Graphics g) {
+        if (Forge.hasGamepad()) {
+            padFocus.drawFocusRing(g);
+        }
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (!Forge.hasGamepad()) {
+            return false;
+        }
+        if (padFocus.getFocused() == lstSettings && lstSettings.keyDown(keyCode)) {
+            return true;
+        }
+        return padFocus.handleKey(keyCode);
+    }
+
     private void applySearch() {
         final String query = txtSearch.getText().toLowerCase().trim();
         if (query.isEmpty()) {
@@ -755,14 +801,15 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         float searchHeight = FTextField.getDefaultHeight(txtSearch.getFont());
         txtSearch.setBounds(0, 0, width, searchHeight);
         lstSettings.setBounds(0, searchHeight, width, height - searchHeight);
+        refreshPadFocus();
     }
 
     private abstract class Setting {
         protected String label;
         protected String description;
-        protected PreferencesStore.IPref pref;
+        protected IPreferences.IPref pref;
 
-        public Setting(PreferencesStore.IPref pref0, String label0, String description0) {
+        public Setting(IPreferences.IPref pref0, String label0, String description0) {
             label = label0;
             description = description0;
             pref = pref0;
@@ -806,7 +853,7 @@ public class SettingsPage extends TabPage<SettingsScreen> {
     private class CustomSelectSetting extends Setting {
         private final List<String> options = new ArrayList<>();
 
-        public CustomSelectSetting(PreferencesStore.IPref pref0, String label0, String description0, String[] options0) {
+        public CustomSelectSetting(IPreferences.IPref pref0, String label0, String description0, String[] options0) {
             super(pref0, label0 + ":", description0);
 
             options.addAll(Arrays.asList(options0));
@@ -896,11 +943,29 @@ public class SettingsPage extends TabPage<SettingsScreen> {
                         }
                     }
                 });
+                int currentIdx = currentValue == null ? -1 : options.indexOf(currentValue);
+                if (currentIdx >= 0) {
+                    lstOptions.setPadSelectedIndex(currentIdx);
+                }
             }
 
             @Override
             protected void doLayout(float startY, float width, float height) {
                 lstOptions.setBounds(0, startY, width, height - startY);
+            }
+
+            @Override
+            public boolean keyDown(int keyCode) {
+                if (Forge.hasGamepad()) {
+                    if (lstOptions.keyDown(keyCode)) {
+                        return true;
+                    }
+                    if (keyCode == Keys.BUTTON_B || keyCode == Keys.ESCAPE) {
+                        Forge.back();
+                        return true;
+                    }
+                }
+                return false;
             }
 
             @Override
@@ -930,7 +995,7 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         private final Map<String, String> localizedToBackingMap;
         private final Map<String, String> backingToLocalizedMap = new HashMap<>();
 
-        public LocalizedSelectSetting(PreferencesStore.IPref pref0,
+        public LocalizedSelectSetting(IPreferences.IPref pref0,
                                       String label0,
                                       String description0,
                                       Map<String, String> localizationMap) {
@@ -980,7 +1045,7 @@ public class SettingsPage extends TabPage<SettingsScreen> {
         private final int minValue;
         private final int maxValue;
 
-        public IntegerSelectSetting(PreferencesStore.IPref pref0, String label0, String description0, int minValue, int maxValue) {
+        public IntegerSelectSetting(IPreferences.IPref pref0, String label0, String description0, int minValue, int maxValue) {
             super(pref0, label0 + ":", description0);
             this.minValue = minValue;
             this.maxValue = maxValue;

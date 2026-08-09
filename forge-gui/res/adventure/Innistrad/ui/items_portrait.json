@@ -43,6 +43,15 @@
       "y": 435
     }  ,
     {
+      "type": "TextButton",
+      "name": "revealAll",
+      "text": "Reveal All",
+      "width": 128,
+      "height": 20,
+      "x": 140,
+      "y": 0
+    }  ,
+    {
       "type": "Label",
       "name": "playerGold",
       "text": "[+Gold]",

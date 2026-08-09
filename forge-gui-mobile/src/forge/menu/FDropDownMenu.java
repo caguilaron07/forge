@@ -3,9 +3,16 @@ package forge.menu;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.badlogic.gdx.Input.Keys;
+
+import forge.Forge;
+import forge.Graphics;
+import forge.toolbox.focus.FocusNavigator;
+
 public abstract class FDropDownMenu extends FDropDown {
     protected final List<FMenuItem> items = new ArrayList<>();
     private int selected = -1;
+    private final FocusNavigator padFocus = new FocusNavigator();
 
     public FDropDownMenu() {
     }
@@ -21,6 +28,7 @@ public abstract class FDropDownMenu extends FDropDown {
     protected ScrollBounds updateAndGetPaneSize(float maxWidth, float maxVisibleHeight) {
         clear();
         items.clear();
+        padFocus.clear();
 
         buildMenu();
 
@@ -34,6 +42,7 @@ public abstract class FDropDownMenu extends FDropDown {
         }
         for (FMenuItem item : items) {
             item.setAllowForIcon(allowForIcon);
+            padFocus.register(item);
         }
 
         //determine needed width of menu
@@ -47,6 +56,14 @@ public abstract class FDropDownMenu extends FDropDown {
         for (FMenuItem item : items) {
             item.setBounds(0, y, width, FMenuItem.HEIGHT);
             y += FMenuItem.HEIGHT;
+        }
+
+        if (Forge.hasGamepad() && !items.isEmpty()) {
+            if (selected < 0 || selected >= items.size()) {
+                selected = 0;
+            }
+            applySelection();
+            padFocus.setFocusedIndex(selected);
         }
 
         return new ScrollBounds(width, y);
@@ -72,6 +89,7 @@ public abstract class FDropDownMenu extends FDropDown {
     public void clearItems() {
         clear();
         items.clear();
+        padFocus.clear();
     }
 
     @Override
@@ -82,37 +100,84 @@ public abstract class FDropDownMenu extends FDropDown {
 
     @Override
     public void setNextSelected() {
-        selected++;
-        clearHighlight();
-        if (selected > items.size()) {
-            selected = 0;
-        }
-        try {
-            items.get(selected).setHovered(true);
-        } catch (Exception e){}
-        if (selected > items.size()) {
-            clearHighlight();
-            selected = items.size();
-        }
-        super.setNextSelected();
+        selectNextItem();
     }
 
     @Override
     public void setPreviousSelected() {
-        selected--;
-        if (selected < 0) {
-            selected = items.size();
+        selectPreviousItem();
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad() && isVisible() && !items.isEmpty()) {
+            padFocus.setScrollPane(this);
+            switch (keyCode) {
+                case Keys.DPAD_UP:
+                case Keys.DPAD_DOWN:
+                case Keys.DPAD_LEFT:
+                case Keys.DPAD_RIGHT:
+                    if (padFocus.handleKey(keyCode)) {
+                        selected = padFocus.getFocusedIndex();
+                        return true;
+                    }
+                    break;
+                case Keys.BUTTON_A:
+                    if (selected < 0 || selected >= items.size()) {
+                        selected = 0;
+                        applySelection();
+                        padFocus.setFocusedIndex(selected);
+                    }
+                    tapChild(items.get(selected));
+                    return true;
+                case Keys.BUTTON_B:
+                case Keys.ESCAPE:
+                    if (autoHide()) {
+                        hide();
+                    }
+                    return true;
+                default:
+                    break;
+            }
         }
-        clearHighlight();
-        try {
-            items.get(selected).setHovered(true);
-        } catch (Exception e){}
-        if (selected < 0) {
-            clearHighlight();
-            selected = -1;
+        return super.keyDown(keyCode);
+    }
+
+    @Override
+    protected void drawOverlay(Graphics g) {
+        if (Forge.hasGamepad() && isVisible()) {
+            padFocus.drawFocusRing(g);
         }
+        super.drawOverlay(g);
+    }
+
+    private void selectNextItem() {
+        if (items.isEmpty()) {
+            return;
+        }
+        selected = (selected + 1) % items.size();
+        applySelection();
+        padFocus.setFocusedIndex(selected);
+        super.setNextSelected();
+    }
+
+    private void selectPreviousItem() {
+        if (items.isEmpty()) {
+            return;
+        }
+        selected = selected <= 0 ? items.size() - 1 : selected - 1;
+        applySelection();
+        padFocus.setFocusedIndex(selected);
         super.setPreviousSelected();
     }
+
+    private void applySelection() {
+        clearHighlight();
+        if (selected >= 0 && selected < items.size()) {
+            items.get(selected).setHovered(true);
+        }
+    }
+
     private void clearHighlight() {
         for (FMenuItem item : items) {
             item.setHovered(false);
@@ -122,6 +187,7 @@ public abstract class FDropDownMenu extends FDropDown {
     @Override
     public void hide() {
         selected = -1;
+        padFocus.clear();
         super.hide();
     }
 }

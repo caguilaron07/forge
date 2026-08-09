@@ -236,6 +236,21 @@ public class FilesPage extends TabPage<SettingsScreen> {
     }
 
     @Override
+    protected void onActivate() {
+        if (Forge.hasGamepad() && lstItems.getPadSelectedIndex() < 0) {
+            lstItems.setPadSelectedIndex(0);
+        }
+    }
+
+    @Override
+    public boolean keyDown(int keyCode) {
+        if (Forge.hasGamepad() && lstItems.keyDown(keyCode)) {
+            return true;
+        }
+        return false;
+    }
+
+    @Override
     protected void doLayout(float width, float height) {
         lstItems.setBounds(0, 0, width, height);
     }

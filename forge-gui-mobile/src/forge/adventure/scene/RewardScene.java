@@ -36,7 +36,7 @@ import java.util.Comparator;
  * Displays the rewards of a fight or a treasure
  */
 public class RewardScene extends UIScene {
-    private TextraButton doneButton, detailButton, restockButton;
+    private TextraButton doneButton, detailButton, restockButton, revealAllButton;
     private TextraLabel playerGold, playerShards;
     private TypingLabel headerLabel;
     private Vector2 headerLabelOrigPos;
@@ -80,10 +80,13 @@ public class RewardScene extends UIScene {
         ui.onButtonPress("done", this::done);
         ui.onButtonPress("detail", this::toggleToolTip);
         ui.onButtonPress("restock", this::restockShop);
+        ui.onButtonPress("revealAll", this::revealAll);
         detailButton = ui.findActor("detail");
         detailButton.setVisible(false);
         doneButton = ui.findActor("done");
         restockButton = ui.findActor("restock");
+        revealAllButton = ui.findActor("revealAll");
+        revealAllButton.setVisible(false);
     }
 
     @Override
@@ -233,25 +236,41 @@ public class RewardScene extends UIScene {
             done(true);
         else if ((type == Type.Loot || type == Type.QuestReward) && !shown) {
             shown = true;
-            float delay = 0.09f;
-            generated.shuffle();
-            for (Actor actor : new Array.ArrayIterator<>(generated)) {
-                if (!(actor instanceof RewardActor)) {
-                    continue;
-                }
-                RewardActor reward = (RewardActor) actor;
-                if (!reward.isFlipped()) {
-                    Timer.schedule(new Timer.Task() {
-                        @Override
-                        public void run() {
-                            reward.flip();
-                        }
-                    }, delay);
-                    delay += 0.12f;
-                }
-            }
+            revealAllButton.setDisabled(true);
+            revealRewards(true);
         } else {
             done(true);
+        }
+    }
+
+    private void revealAll() {
+        if (type != Type.Loot && type != Type.QuestReward) {
+            return;
+        }
+        shown = true;
+        revealAllButton.setDisabled(true);
+        revealRewards(false);
+    }
+
+    private void revealRewards(boolean shuffle) {
+        float delay = 0.09f;
+        if (shuffle) {
+            generated.shuffle();
+        }
+        for (Actor actor : new Array.ArrayIterator<>(generated)) {
+            if (!(actor instanceof RewardActor)) {
+                continue;
+            }
+            RewardActor reward = (RewardActor) actor;
+            if (!reward.isFlipped()) {
+                Timer.schedule(new Timer.Task() {
+                    @Override
+                    public void run() {
+                        reward.flip();
+                    }
+                }, delay);
+                delay += 0.12f;
+            }
         }
     }
 
@@ -360,6 +379,8 @@ public class RewardScene extends UIScene {
         clearSelectable();
         this.type = type;
         doneClicked = false;
+        revealAllButton.setVisible(false);
+        revealAllButton.setDisabled(false);
         updateCollectionPool();
         if (type == Type.Shop) {
             this.shopActor = shopActor;
@@ -452,9 +473,12 @@ public class RewardScene extends UIScene {
                 headerLabel.setText("[%?SHINY][;]\u2610 " + Forge.getLocalizer().getMessage("lblAll"));
                 headerLabel.skipToTheEnd();
                 restockButton.setVisible(false);
+                revealAllButton.setVisible(true);
+                addToSelectable(revealAllButton);
                 break;
             case RewardChoice:
                 restockButton.setVisible(false);
+                revealAllButton.setVisible(false);
                 headerLabel.setVisible(remainingSelections > 0);
                 headerLabel.setText(Forge.getLocalizer().getMessage("lblSelectRewards", remainingSelections));
                 doneButton.setDisabled(remainingSelections > 0);
